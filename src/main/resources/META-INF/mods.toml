@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[40,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="zapocmod"
+version="1.0.0"
+displayName="Zombie Apocalypse AI & HUD"
+authors="you"
+description='''Custom AI: hostile mobs path toward the shared bed during judgment nights unless a player is within 20 blocks. Adds a HUD panel showing day count, horde countdown, and bed status. Reads its state from the zapoc datapack's scoreboard so both systems stay in sync.'''
+
+[[dependencies.zapocmod]]
+    modId="forge"
+    mandatory=true
+    versionRange="[40,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.zapocmod]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.18.2]"
+    ordering="NONE"
+    side="BOTH"
