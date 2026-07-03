@@ -1,6 +1,8 @@
 package com.zapoc;
-import com.zapoc.client.HudOverlay;
+
 import com.zapoc.ai.ZombieAIEvents;
+import com.zapoc.bed.BedEvents;
+import com.zapoc.client.HudOverlay;
 import com.zapoc.network.NetworkHandler;
 import com.zapoc.server.ServerTickHandler;
 import net.minecraftforge.api.distmarker.Dist;
@@ -19,6 +21,9 @@ public class ZapocMod {
 
         MinecraftForge.EVENT_BUS.register(ZombieAIEvents.class);
         MinecraftForge.EVENT_BUS.register(ServerTickHandler.class);
+
+        // Регистрируем систему кровати
+        MinecraftForge.EVENT_BUS.register(new BedEvents());
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
 
