@@ -1,5 +1,5 @@
 package com.zapoc.server;
-
+import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
@@ -51,7 +51,8 @@ public class ServerTickHandler {
             } else if (level.isLoaded(pos)) {
 
                 if (!(level.getBlockState(pos).getBlock() instanceof BedBlock)) {
-
+                    BedChunkLoader.unloadChunks((ServerLevel) level);
+                    BedManager.removeBed();
                     BedManager.removeBed();
 
                 }

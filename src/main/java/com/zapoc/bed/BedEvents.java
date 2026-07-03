@@ -1,5 +1,6 @@
 package com.zapoc.bed;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,6 +23,8 @@ public class BedEvents {
             return;
 
         BedManager.setBed(event.getPos(), level.dimension());
+
+        BedChunkLoader.loadChunks((ServerLevel) level);
 
         BedSpawnManager.updateAllPlayers(level.getServer());
 

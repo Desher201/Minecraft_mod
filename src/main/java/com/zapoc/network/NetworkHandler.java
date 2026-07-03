@@ -1,5 +1,6 @@
 package com.zapoc.network;
 
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
