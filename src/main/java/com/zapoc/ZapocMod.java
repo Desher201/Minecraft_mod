@@ -1,5 +1,6 @@
 package com.zapoc;
 
+import com.zapoc.hardcore.HardcoreEvents;
 import com.zapoc.ai.ZombieAIEvents;
 import com.zapoc.bed.BedEvents;
 import com.zapoc.client.HudOverlay;
@@ -17,21 +18,21 @@ public class ZapocMod {
 
         System.out.println("===== ZAPOC MOD START =====");
 
+        // Регистрация сети
         NetworkHandler.register();
 
+        // Серверные события
         MinecraftForge.EVENT_BUS.register(ZombieAIEvents.class);
         MinecraftForge.EVENT_BUS.register(ServerTickHandler.class);
+        MinecraftForge.EVENT_BUS.register(BedEvents.class);
+        MinecraftForge.EVENT_BUS.register(HardcoreEvents.class);
 
-        // Регистрируем систему кровати
-        MinecraftForge.EVENT_BUS.register(new BedEvents());
-
+        // Клиентские события
         if (FMLEnvironment.dist == Dist.CLIENT) {
 
             System.out.println("===== CLIENT =====");
 
-            HudOverlay overlay = new HudOverlay();
-
-            MinecraftForge.EVENT_BUS.register(overlay);
+            MinecraftForge.EVENT_BUS.register(new HudOverlay());
 
             System.out.println("===== HUD REGISTERED =====");
         }
