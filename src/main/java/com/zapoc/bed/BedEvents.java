@@ -24,6 +24,8 @@ public class BedEvents {
 
         BedManager.setBed(event.getPos(), level.dimension());
 
+        BedPersistenceManager.saveBed((ServerLevel) level);
+
         BedChunkLoader.loadChunks((ServerLevel) level);
 
         BedSpawnManager.updateAllPlayers(level.getServer());

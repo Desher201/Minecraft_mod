@@ -1,6 +1,8 @@
 package com.zapoc.server;
+
 import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
+import com.zapoc.bed.BedPersistenceManager;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
 import net.minecraft.core.BlockPos;
@@ -18,6 +20,9 @@ public class ServerTickHandler {
 
     private static int tickCounter = 0;
 
+    // Загружаем BedSavedData только один раз
+    private static boolean loaded = false;
+
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
 
@@ -28,8 +33,23 @@ public class ServerTickHandler {
         if (server == null)
             return;
 
+        // ==========================
+        // Загружаем сохранённую кровать
+        // ==========================
+
+        if (!loaded) {
+
+            BedPersistenceManager.loadBed(server.overworld());
+
+            loaded = true;
+        }
+
+        // ==========================
         // Проверяем раз в 5 тиков
+        // ==========================
+
         tickCounter++;
+
         if (tickCounter < 5)
             return;
 
@@ -42,6 +62,7 @@ public class ServerTickHandler {
         if (BedManager.hasBed()) {
 
             BlockPos pos = BedManager.getBedPos();
+
             ServerLevel level = server.getLevel(BedManager.getDimension());
 
             if (level == null) {
@@ -51,12 +72,13 @@ public class ServerTickHandler {
             } else if (level.isLoaded(pos)) {
 
                 if (!(level.getBlockState(pos).getBlock() instanceof BedBlock)) {
-                    BedChunkLoader.unloadChunks((ServerLevel) level);
-                    BedManager.removeBed();
+
+                    BedChunkLoader.unloadChunks(level);
+
                     BedManager.removeBed();
 
+                    BedPersistenceManager.saveBed(level);
                 }
-
             }
 
         } else {
@@ -66,7 +88,7 @@ public class ServerTickHandler {
         }
 
         // ==========================
-        // HUD DATA
+        // HUD
         // ==========================
 
         int day = (int) (server.overworld().getDayTime() / 24000L) + 1;
@@ -94,5 +116,9 @@ public class ServerTickHandler {
                         BedManager.isHardcore()
                 )
         );
+    }
+
+    public static void resetLoadedFlag() {
+        loaded = false;
     }
 }
