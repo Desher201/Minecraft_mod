@@ -23,6 +23,8 @@ public class BedEvents {
 
         BedManager.setBed(event.getPos(), level.dimension());
 
+        BedSpawnManager.updateAllPlayers(level.getServer());
+
         System.out.println("[ZApoc] Global bed placed at " + event.getPos());
     }
 }
