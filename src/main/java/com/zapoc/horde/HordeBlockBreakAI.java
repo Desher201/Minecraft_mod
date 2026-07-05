@@ -199,8 +199,6 @@ public class HordeBlockBreakAI {
         );
 
         if (progress >= requiredProgress) {
-
-            level.destroyBlock(pos, true);
             BREAK_PROGRESS.remove(blockKey);
             LAST_HIT_TICK.remove(hitKey);
 

@@ -8,23 +8,20 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class HordeBedAttackAI {
 
-    private static final double ATTACK_RADIUS = 2.8;
-    private static final double HELPER_RADIUS = 3.5;
-
+    private static final double HELPER_RADIUS = 4.0D;
     private static final int BREAK_PROGRESS_REQUIRED = 80;
+    private static final int REMOVE_BLOCK_FLAGS = 34;
 
     private static final Map<Integer, Integer> BREAK_PROGRESS = new HashMap<>();
 
@@ -33,21 +30,7 @@ public class HordeBedAttackAI {
         if (group == null)
             return false;
 
-        Mob leader = group.getLeader();
-
-        if (leader == null)
-            return false;
-
-        if (!leader.isAlive())
-            return false;
-
         if (!BedManager.hasBed())
-            return false;
-
-        if (!(leader.level instanceof ServerLevel level))
-            return false;
-
-        if (!level.dimension().equals(BedManager.getDimension()))
             return false;
 
         BlockPos bedPos = BedManager.getBedPos();
@@ -55,41 +38,40 @@ public class HordeBedAttackAI {
         if (bedPos == null)
             return false;
 
+        ServerLevel level = getGroupLevel(group);
+
+        if (level == null)
+            return false;
+
+        if (!level.dimension().equals(BedManager.getDimension()))
+            return false;
+
         BlockState bedState = level.getBlockState(bedPos);
 
         if (!(bedState.getBlock() instanceof BedBlock)) {
-
             BREAK_PROGRESS.remove(group.getId());
             return false;
         }
 
-        if (!canMobReachBed(level, leader, bedPos)) {
+        int attackers = countAttackers(level, group, bedPos, bedState);
 
+        if (attackers <= 0) {
             BREAK_PROGRESS.remove(group.getId());
             return false;
         }
 
         clearTargets(group);
 
-        int attackers = countAttackers(level, group, bedPos);
-
-        if (attackers <= 0) {
-
-            BREAK_PROGRESS.remove(group.getId());
-            return false;
-        }
-
         int progress = BREAK_PROGRESS.getOrDefault(group.getId(), 0);
-
         progress += attackers;
 
         BREAK_PROGRESS.put(group.getId(), progress);
 
-        swingAttackers(level, group, bedPos);
+        swingAttackers(level, group, bedPos, bedState);
 
         if (progress >= BREAK_PROGRESS_REQUIRED) {
 
-            destroyBed(level, bedPos, bedState);
+            destroyBedWithoutDrop(level, bedPos, bedState);
 
             BREAK_PROGRESS.remove(group.getId());
 
@@ -106,7 +88,25 @@ public class HordeBedAttackAI {
         return true;
     }
 
-    private static int countAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos) {
+    private static ServerLevel getGroupLevel(HordeGroup group) {
+
+        for (Mob mob : group.getZombies()) {
+
+            if (mob == null)
+                continue;
+
+            if (!mob.isAlive())
+                continue;
+
+            if (mob.level instanceof ServerLevel level) {
+                return level;
+            }
+        }
+
+        return null;
+    }
+
+    private static int countAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos, BlockState bedState) {
 
         int count = 0;
 
@@ -118,7 +118,7 @@ public class HordeBedAttackAI {
             if (!mob.isAlive())
                 continue;
 
-            if (canMobHelpAttackBed(level, mob, bedPos)) {
+            if (canMobAttackBed(level, mob, bedPos, bedState)) {
                 count++;
             }
         }
@@ -126,7 +126,7 @@ public class HordeBedAttackAI {
         return count;
     }
 
-    private static void swingAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos) {
+    private static void swingAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos, BlockState bedState) {
 
         for (Mob mob : group.getZombies()) {
 
@@ -136,56 +136,73 @@ public class HordeBedAttackAI {
             if (!mob.isAlive())
                 continue;
 
-            if (canMobHelpAttackBed(level, mob, bedPos)) {
+            if (canMobAttackBed(level, mob, bedPos, bedState)) {
                 mob.swing(InteractionHand.MAIN_HAND);
             }
         }
     }
 
-    private static boolean canMobHelpAttackBed(ServerLevel level, Mob mob, BlockPos bedPos) {
+    private static boolean canMobAttackBed(ServerLevel level, Mob mob, BlockPos bedPos, BlockState bedState) {
 
-        double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
-
-        if (distance > HELPER_RADIUS * HELPER_RADIUS)
+        if (mob.distanceToSqr(
+                bedPos.getX() + 0.5D,
+                bedPos.getY() + 0.5D,
+                bedPos.getZ() + 0.5D
+        ) > HELPER_RADIUS * HELPER_RADIUS) {
             return false;
+        }
 
-        return hasClearLineToBed(level, mob, bedPos);
-    }
+        BlockPos mobPos = mob.blockPosition();
 
-    private static boolean canMobReachBed(ServerLevel level, Mob mob, BlockPos bedPos) {
-
-        double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
-
-        if (distance > ATTACK_RADIUS * ATTACK_RADIUS)
-            return false;
-
-        return hasClearLineToBed(level, mob, bedPos);
-    }
-
-    private static boolean hasClearLineToBed(ServerLevel level, Mob mob, BlockPos bedPos) {
-
-        Vec3 start = mob.getEyePosition(1.0F);
-        Vec3 end = Vec3.atCenterOf(bedPos);
-
-        BlockHitResult hit = level.clip(
-                new ClipContext(
-                        start,
-                        end,
-                        ClipContext.Block.COLLIDER,
-                        ClipContext.Fluid.NONE,
-                        mob
-                )
-        );
-
-        if (hit.getType() != HitResult.Type.BLOCK)
-            return false;
-
-        BlockPos hitPos = hit.getBlockPos();
-
-        if (hitPos.equals(bedPos))
+        if (canReachBedPart(level, mobPos, bedPos))
             return true;
 
-        return level.getBlockState(hitPos).getBlock() instanceof BedBlock;
+        BlockPos otherPartPos = getOtherBedPartPos(bedPos, bedState);
+        BlockState otherState = level.getBlockState(otherPartPos);
+
+        if (!(otherState.getBlock() instanceof BedBlock))
+            return false;
+
+        return canReachBedPart(level, mobPos, otherPartPos);
+    }
+
+    private static boolean canReachBedPart(ServerLevel level, BlockPos mobPos, BlockPos bedPartPos) {
+
+        int dx = Math.abs(mobPos.getX() - bedPartPos.getX());
+        int dy = Math.abs(mobPos.getY() - bedPartPos.getY());
+        int dz = Math.abs(mobPos.getZ() - bedPartPos.getZ());
+
+        if (dy > 2)
+            return false;
+
+        if (dx <= 1 && dz <= 1)
+            return true;
+
+        if (dx > 2 || dz > 2)
+            return false;
+
+        return !hasSolidBlockBetween(level, mobPos, bedPartPos);
+    }
+
+    private static boolean hasSolidBlockBetween(ServerLevel level, BlockPos from, BlockPos to) {
+
+        int dx = Integer.compare(to.getX() - from.getX(), 0);
+        int dz = Integer.compare(to.getZ() - from.getZ(), 0);
+
+        BlockPos checkPos = from.offset(dx, 0, dz);
+
+        while (!checkPos.equals(to)) {
+
+            BlockState state = level.getBlockState(checkPos);
+
+            if (!state.isAir() && !state.getCollisionShape(level, checkPos).isEmpty()) {
+                return true;
+            }
+
+            checkPos = checkPos.offset(dx, 0, dz);
+        }
+
+        return false;
     }
 
     private static void clearTargets(HordeGroup group) {
@@ -202,31 +219,46 @@ public class HordeBedAttackAI {
         }
     }
 
-    private static void destroyBed(ServerLevel level, BlockPos bedPos, BlockState bedState) {
+    private static void destroyBedWithoutDrop(ServerLevel level, BlockPos bedPos, BlockState bedState) {
 
-        if (!(bedState.getBlock() instanceof BedBlock)) {
-            level.destroyBlock(bedPos, true);
-            return;
+        BlockPos otherPartPos = getOtherBedPartPos(bedPos, bedState);
+        BlockState otherState = level.getBlockState(otherPartPos);
+
+        playBreakEffect(level, bedPos, bedState);
+
+        if (otherState.getBlock() instanceof BedBlock) {
+            playBreakEffect(level, otherPartPos, otherState);
         }
+
+        if (otherState.getBlock() instanceof BedBlock) {
+            level.setBlock(otherPartPos, Blocks.AIR.defaultBlockState(), REMOVE_BLOCK_FLAGS);
+        }
+
+        level.setBlock(bedPos, Blocks.AIR.defaultBlockState(), REMOVE_BLOCK_FLAGS);
+    }
+
+    private static BlockPos getOtherBedPartPos(BlockPos bedPos, BlockState bedState) {
+
+        if (!(bedState.getBlock() instanceof BedBlock))
+            return bedPos;
 
         Direction facing = bedState.getValue(BedBlock.FACING);
         BedPart part = bedState.getValue(BedBlock.PART);
 
-        BlockPos otherPartPos;
-
         if (part == BedPart.HEAD) {
-            otherPartPos = bedPos.relative(facing.getOpposite());
-        } else {
-            otherPartPos = bedPos.relative(facing);
+            return bedPos.relative(facing.getOpposite());
         }
 
-        BlockState otherState = level.getBlockState(otherPartPos);
+        return bedPos.relative(facing);
+    }
 
-        level.destroyBlock(bedPos, true);
+    private static void playBreakEffect(ServerLevel level, BlockPos pos, BlockState state) {
 
-        if (otherState.getBlock() instanceof BedBlock) {
-            level.destroyBlock(otherPartPos, true);
-        }
+        level.levelEvent(
+                2001,
+                pos,
+                Block.getId(state)
+        );
     }
 
     public static void reset() {
