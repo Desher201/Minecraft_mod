@@ -6,7 +6,6 @@ import com.zapoc.horde.HordeManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -18,6 +17,7 @@ public class GoToBedGoal extends Goal {
     private static final double ARRIVE_DIST_SQR = 4.0;
 
     private final Mob mob;
+
     private BlockPos targetBed;
     private int repathCooldown = 0;
 
@@ -25,7 +25,6 @@ public class GoToBedGoal extends Goal {
 
         this.mob = mob;
         this.setFlags(EnumSet.of(Flag.MOVE));
-
     }
 
     @Override
@@ -33,25 +32,25 @@ public class GoToBedGoal extends Goal {
 
         Level level = mob.level;
 
+        if (level.isClientSide())
+            return false;
+
         if (!HordeManager.isHordeActive())
             return false;
 
         if (!BedManager.hasBed())
             return false;
 
-        if (level.getNearestPlayer(mob, 20) != null)
+        if (HordeGroupManager.isTracked(mob))
             return false;
 
         targetBed = BedManager.getBedPos();
 
         return targetBed != null;
-
     }
 
     @Override
     public boolean canContinueToUse() {
-
-        Level level = mob.level;
 
         if (!HordeManager.isHordeActive())
             return false;
@@ -59,38 +58,23 @@ public class GoToBedGoal extends Goal {
         if (!BedManager.hasBed())
             return false;
 
+        if (HordeGroupManager.isTracked(mob))
+            return false;
+
         if (targetBed == null)
             return false;
 
-        if (mob.getTarget() != null)
-            return false;
-
         return mob.distanceToSqr(Vec3.atCenterOf(targetBed)) > ARRIVE_DIST_SQR;
-
     }
 
     @Override
     public void start() {
 
         moveToBed();
-
     }
 
     @Override
     public void tick() {
-
-        // Проверяем, появился ли игрок рядом
-        Player player = mob.level.getNearestPlayer(mob, 20);
-
-        if (player != null) {
-
-            mob.setTarget(player);
-
-            HordeGroupManager.alertGroup(mob, player);
-
-            return;
-
-        }
 
         if (targetBed == null)
             return;
@@ -100,15 +84,8 @@ public class GoToBedGoal extends Goal {
         if (repathCooldown <= 0) {
 
             repathCooldown = 20;
-
-            if (mob.getNavigation().isDone()) {
-
-                moveToBed();
-
-            }
-
+            moveToBed();
         }
-
     }
 
     @Override
@@ -116,7 +93,6 @@ public class GoToBedGoal extends Goal {
 
         mob.getNavigation().stop();
         targetBed = null;
-
     }
 
     private void moveToBed() {
@@ -130,7 +106,5 @@ public class GoToBedGoal extends Goal {
                 targetBed.getZ() + 0.5,
                 SPEED
         );
-
     }
-
 }

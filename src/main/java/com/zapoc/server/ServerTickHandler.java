@@ -3,6 +3,7 @@ package com.zapoc.server;
 import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.bed.BedPersistenceManager;
+import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
@@ -23,7 +24,6 @@ public class ServerTickHandler {
     private static int tickCounter = 0;
     private static boolean loaded = false;
 
-    // Чтобы не спамить усилением каждый тик
     private static int lastZombieDay = -1;
 
     @SubscribeEvent
@@ -33,20 +33,15 @@ public class ServerTickHandler {
             return;
 
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+
         if (server == null)
             return;
 
-        // ==========================
-        // Загрузка BedSavedData
-        // ==========================
         if (!loaded) {
             BedPersistenceManager.loadBed(server.overworld());
             loaded = true;
         }
 
-        // ==========================
-        // Тик-логика
-        // ==========================
         tickCounter++;
 
         if (tickCounter < 5)
@@ -54,9 +49,6 @@ public class ServerTickHandler {
 
         tickCounter = 0;
 
-        // ==========================
-        // Проверка существования кровати
-        // ==========================
         if (BedManager.hasBed()) {
 
             BlockPos pos = BedManager.getBedPos();
@@ -73,30 +65,25 @@ public class ServerTickHandler {
                     BedChunkLoader.unloadChunks(level);
                     BedManager.removeBed();
                     BedPersistenceManager.saveBed(level);
-
                 }
             }
 
         } else {
 
             BedManager.setHardcore(true);
-
         }
 
-        // ==========================
-        // День
-        // ==========================
         int day = (int) (server.overworld().getDayTime() / 24000L);
+
+        if (day <= 0)
+            day = 1;
 
         HordeManager.setCurrentDay(day);
 
-        int daysLeft = 10 - ((day - 1) % 10);
+        int daysLeft = HordeManager.getDaysUntilNextHorde();
 
         long time = server.overworld().getDayTime() % 24000L;
 
-        // ==========================
-        // Орда
-        // ==========================
         if (daysLeft == 1 && time >= 13000) {
 
             HordeManager.startHorde();
@@ -104,24 +91,21 @@ public class ServerTickHandler {
         } else {
 
             HordeManager.stopHorde();
-
         }
 
         boolean hordeNight = HordeManager.isHordeActive();
 
-        // ==========================
-        // Усиление зомби
-        // ==========================
+        if (hordeNight) {
+            HordeGroupManager.cleanupDeadZombies();
+            HordeGroupManager.tickGroups();
+        }
+
         if (day != lastZombieDay) {
 
             ZombiePowerSystem.applyToWorld(server.overworld(), day);
             lastZombieDay = day;
-
         }
 
-        // ==========================
-        // HUD
-        // ==========================
         NetworkHandler.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
                 new HudSyncPacket(
@@ -137,6 +121,6 @@ public class ServerTickHandler {
 
         loaded = false;
         lastZombieDay = -1;
-
+        HordeGroupManager.clear();
     }
 }

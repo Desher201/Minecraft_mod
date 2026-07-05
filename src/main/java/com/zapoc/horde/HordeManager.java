@@ -2,16 +2,12 @@ package com.zapoc.horde;
 
 public class HordeManager {
 
-    // Текущий игровой день
     private static int currentDay = 1;
 
-    // Каждые 7 дней начинается орда
-    private static final int HORDE_INTERVAL = 7;
+    private static final int HORDE_INTERVAL = 10;
 
-    // Активна ли сейчас орда
     private static boolean hordeActive = false;
 
-    // Номер текущей орды
     private static int hordeNumber = 0;
 
     public static int getCurrentDay() {
@@ -19,7 +15,7 @@ public class HordeManager {
     }
 
     public static void setCurrentDay(int day) {
-        currentDay = day;
+        currentDay = Math.max(day, 1);
     }
 
     public static boolean isHordeActive() {
@@ -34,8 +30,11 @@ public class HordeManager {
         hordeActive = true;
         hordeNumber++;
 
+        HordeGroupManager.createGroups();
+
         System.out.println("===== HORDE STARTED =====");
         System.out.println("Horde #" + hordeNumber);
+        System.out.println("Groups created: " + HordeGroupManager.getGroups().size());
     }
 
     public static void stopHorde() {
@@ -45,14 +44,16 @@ public class HordeManager {
 
         hordeActive = false;
 
+        HordeGroupManager.clear();
+
         System.out.println("===== HORDE ENDED =====");
     }
 
     public static int getDaysUntilNextHorde() {
 
-        int days = HORDE_INTERVAL - (currentDay % HORDE_INTERVAL);
+        int days = HORDE_INTERVAL - ((currentDay - 1) % HORDE_INTERVAL);
 
-        if (days == 0)
+        if (days <= 0)
             days = HORDE_INTERVAL;
 
         return days;
@@ -62,4 +63,7 @@ public class HordeManager {
         return hordeNumber;
     }
 
+    public static int getHordeInterval() {
+        return HORDE_INTERVAL;
+    }
 }
