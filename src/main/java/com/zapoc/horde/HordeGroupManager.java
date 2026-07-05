@@ -182,6 +182,8 @@ public class HordeGroupManager {
     }
 
     public static void clear() {
+
         GROUPS.clear();
+        HordeBedAttackAI.reset();
     }
 }

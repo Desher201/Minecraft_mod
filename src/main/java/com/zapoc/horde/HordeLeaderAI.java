@@ -38,6 +38,9 @@ public class HordeLeaderAI {
         if (bedPos == null)
             return;
 
+        if (HordeBedAttackAI.tick(group))
+            return;
+
         double distanceToBedSqr = leader.distanceToSqr(
                 Vec3.atCenterOf(bedPos)
         );
