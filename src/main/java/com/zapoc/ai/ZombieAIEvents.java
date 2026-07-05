@@ -5,7 +5,9 @@ import com.zapoc.horde.HordeManager;
 import com.zapoc.zombie.ZombieRoleAI;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -88,12 +90,36 @@ public class ZombieAIEvents {
         if (!isTargetMob(mob))
             return;
 
+        protectFromSun(mob);
+
+        ZombieRoleAI.tick(mob);
+
         if (!HordeManager.isHordeActive())
             return;
 
         HordeGroupManager.addZombie(mob);
+    }
 
-        ZombieRoleAI.tick(mob);
+    @SubscribeEvent
+    public static void onLivingAttack(LivingAttackEvent event) {
+
+        if (event.getEntityLiving().level.isClientSide())
+            return;
+
+        if (!(event.getEntityLiving() instanceof Mob mob))
+            return;
+
+        if (!isTargetMob(mob))
+            return;
+
+        if (!event.getSource().isFire())
+            return;
+
+        if (!isInSun(mob))
+            return;
+
+        event.setCanceled(true);
+        mob.clearFire();
     }
 
     @SubscribeEvent
@@ -109,6 +135,30 @@ public class ZombieAIEvents {
             return;
 
         HordeGroupManager.removeZombie(mob);
+    }
+
+    private static void protectFromSun(Mob mob) {
+
+        if (!isInSun(mob))
+            return;
+
+        mob.clearFire();
+    }
+
+    private static boolean isInSun(Mob mob) {
+
+        Level level = mob.level;
+
+        if (!level.isDay())
+            return false;
+
+        if (level.isRaining())
+            return false;
+
+        if (!level.canSeeSky(mob.blockPosition()))
+            return false;
+
+        return true;
     }
 
     private static boolean isTargetMob(Mob mob) {

@@ -20,7 +20,11 @@ public class HordeBlockBreakAI {
 
     private static final double PLAYER_BREAK_TARGET_RADIUS = 14.0;
 
-    private static final Map<Long, Integer> BREAK_PROGRESS = new HashMap<>();
+    private static final double START_DAMAGE_PER_SECOND = 5.0D;
+    private static final double DAMAGE_PER_DAY = 0.35D;
+    private static final double MAX_DAMAGE_PER_SECOND = 40.0D;
+    private static final Map<Long, Double> BREAK_PROGRESS = new HashMap<>();
+    private static final Map<String, Long> LAST_HIT_TICK = new HashMap<>();
 
     public static boolean tick(HordeGroup group) {
 
@@ -52,9 +56,6 @@ public class HordeBlockBreakAI {
             return false;
 
         if (!mob.isAlive())
-            return false;
-
-        if (!HordeManager.isHordeActive())
             return false;
 
         if (ZombieTypeManager.getType(mob) != ZombieType.BREAKER)
@@ -98,8 +99,11 @@ public class HordeBlockBreakAI {
             return nearbyPlayer.blockPosition();
         }
 
-        if (BedManager.hasBed()) {
-            return BedManager.getBedPos();
+        if (BedManager.hasBed() && mob.level instanceof ServerLevel level) {
+
+            if (level.dimension().equals(BedManager.getDimension())) {
+                return BedManager.getBedPos();
+            }
         }
 
         return null;
@@ -169,11 +173,21 @@ public class HordeBlockBreakAI {
         if (requiredProgress <= 0)
             return;
 
-        long key = pos.asLong();
+        long gameTime = level.getGameTime();
+        String hitKey = breaker.getId() + ":" + pos.asLong();
 
-        int damage = getBlockDamage(breaker);
+        Long lastHitTick = LAST_HIT_TICK.get(hitKey);
 
-        int progress = BREAK_PROGRESS.getOrDefault(key, 0);
+        if (lastHitTick != null && lastHitTick == gameTime)
+            return;
+
+        LAST_HIT_TICK.put(hitKey, gameTime);
+
+        long blockKey = pos.asLong();
+
+        double damage = getBlockDamagePerTick();
+        double progress = BREAK_PROGRESS.getOrDefault(blockKey, 0.0D);
+
         progress += damage;
 
         breaker.swing(InteractionHand.MAIN_HAND);
@@ -187,11 +201,12 @@ public class HordeBlockBreakAI {
         if (progress >= requiredProgress) {
 
             level.destroyBlock(pos, true);
-            BREAK_PROGRESS.remove(key);
+            BREAK_PROGRESS.remove(blockKey);
+            LAST_HIT_TICK.remove(hitKey);
 
         } else {
 
-            BREAK_PROGRESS.put(key, progress);
+            BREAK_PROGRESS.put(blockKey, progress);
         }
     }
 
@@ -202,7 +217,7 @@ public class HordeBlockBreakAI {
         if (state.isAir())
             return false;
 
-        if (!BlockLevelSystem.canBeBroken(level, pos))
+        if (!BlockLevelSystem.canBreakerBreak(level, pos))
             return false;
 
         if (state.getCollisionShape(level, pos).isEmpty())
@@ -211,13 +226,24 @@ public class HordeBlockBreakAI {
         return true;
     }
 
-    private static int getBlockDamage(Mob mob) {
+    private static double getBlockDamagePerTick() {
 
-        if (ZombieTypeManager.getType(mob) == ZombieType.BREAKER) {
-            return 2;
-        }
+        return getBlockDamagePerSecond() / 20.0D;
+    }
 
-        return 1;
+    private static double getBlockDamagePerSecond() {
+
+        int day = HordeManager.getCurrentDay();
+
+        if (day < 1)
+            day = 1;
+
+        double damage = START_DAMAGE_PER_SECOND + ((day - 1) * DAMAGE_PER_DAY);
+
+        if (damage > MAX_DAMAGE_PER_SECOND)
+            return MAX_DAMAGE_PER_SECOND;
+
+        return damage;
     }
 
     private static Direction getDirectionToTarget(BlockPos from, BlockPos target) {
@@ -234,5 +260,6 @@ public class HordeBlockBreakAI {
 
     public static void reset() {
         BREAK_PROGRESS.clear();
+        LAST_HIT_TICK.clear();
     }
 }

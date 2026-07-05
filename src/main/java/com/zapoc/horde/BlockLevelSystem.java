@@ -15,14 +15,31 @@ public class BlockLevelSystem {
     private static final Map<ResourceLocation, Integer> BLOCK_LEVELS = new HashMap<>();
 
     static {
-
         register("minecraft:dirt", 1);
         register("minecraft:grass_block", 1);
         register("minecraft:coarse_dirt", 1);
+        register("minecraft:podzol", 1);
         register("minecraft:sand", 1);
+        register("minecraft:red_sand", 1);
         register("minecraft:gravel", 1);
         register("minecraft:clay", 1);
         register("minecraft:glass", 1);
+        register("minecraft:white_wool", 1);
+        register("minecraft:orange_wool", 1);
+        register("minecraft:magenta_wool", 1);
+        register("minecraft:light_blue_wool", 1);
+        register("minecraft:yellow_wool", 1);
+        register("minecraft:lime_wool", 1);
+        register("minecraft:pink_wool", 1);
+        register("minecraft:gray_wool", 1);
+        register("minecraft:light_gray_wool", 1);
+        register("minecraft:cyan_wool", 1);
+        register("minecraft:purple_wool", 1);
+        register("minecraft:blue_wool", 1);
+        register("minecraft:brown_wool", 1);
+        register("minecraft:green_wool", 1);
+        register("minecraft:red_wool", 1);
+        register("minecraft:black_wool", 1);
 
         register("minecraft:oak_planks", 2);
         register("minecraft:spruce_planks", 2);
@@ -38,29 +55,44 @@ public class BlockLevelSystem {
         register("minecraft:acacia_log", 2);
         register("minecraft:dark_oak_log", 2);
 
+        register("minecraft:oak_door", 2);
+        register("minecraft:spruce_door", 2);
+        register("minecraft:birch_door", 2);
+        register("minecraft:jungle_door", 2);
+        register("minecraft:acacia_door", 2);
+        register("minecraft:dark_oak_door", 2);
+
         register("minecraft:stone", 3);
         register("minecraft:cobblestone", 3);
         register("minecraft:stone_bricks", 3);
         register("minecraft:bricks", 3);
         register("minecraft:sandstone", 3);
+        register("minecraft:red_sandstone", 3);
         register("minecraft:andesite", 3);
         register("minecraft:diorite", 3);
         register("minecraft:granite", 3);
+        register("minecraft:calcite", 3);
+        register("minecraft:tuff", 3);
 
         register("minecraft:deepslate", 4);
         register("minecraft:cobbled_deepslate", 4);
         register("minecraft:polished_deepslate", 4);
+        register("minecraft:deepslate_bricks", 4);
+        register("minecraft:deepslate_tiles", 4);
         register("minecraft:iron_block", 4);
         register("minecraft:iron_door", 4);
+        register("minecraft:iron_bars", 4);
 
         register("minecraft:obsidian", 5);
         register("minecraft:crying_obsidian", 5);
+        register("minecraft:ancient_debris", 5);
 
         register("minecraft:bedrock", -1);
-
-        // Future mod blocks example:
-        // register("some_mod:steel_block", 4);
-        // register("some_mod:reinforced_concrete", 5);
+        register("minecraft:end_portal_frame", -1);
+        register("minecraft:barrier", -1);
+        register("minecraft:command_block", -1);
+        register("minecraft:chain_command_block", -1);
+        register("minecraft:repeating_command_block", -1);
     }
 
     public static int getLevel(ServerLevel level, BlockPos pos) {
@@ -100,13 +132,11 @@ public class BlockLevelSystem {
             return -1;
 
         return switch (blockLevel) {
-
             case 1 -> 20;
             case 2 -> 40;
             case 3 -> 70;
             case 4 -> 110;
             case 5 -> 180;
-
             default -> 260;
         };
     }
@@ -114,6 +144,38 @@ public class BlockLevelSystem {
     public static boolean canBeBroken(ServerLevel level, BlockPos pos) {
 
         return getLevel(level, pos) > 0;
+    }
+
+    public static boolean canBreakerBreak(ServerLevel level, BlockPos pos) {
+
+        int blockLevel = getLevel(level, pos);
+
+        if (blockLevel <= 0)
+            return false;
+
+        if (blockLevel >= 6)
+            return false;
+
+        return blockLevel <= getMaxBreakerLevel();
+    }
+
+    public static int getMaxBreakerLevel() {
+
+        int day = HordeManager.getCurrentDay();
+
+        if (day < 20)
+            return 1;
+
+        if (day < 30)
+            return 2;
+
+        if (day <= 40)
+            return 3;
+
+        if (day <= 60)
+            return 4;
+
+        return 5;
     }
 
     private static int getLevelByHardness(float hardness) {
@@ -138,9 +200,6 @@ public class BlockLevelSystem {
 
     private static void register(String id, int level) {
 
-        BLOCK_LEVELS.put(
-                new ResourceLocation(id),
-                level
-        );
+        BLOCK_LEVELS.put(new ResourceLocation(id), level);
     }
 }
