@@ -3,8 +3,10 @@ package com.zapoc.server;
 import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.bed.BedPersistenceManager;
+import com.zapoc.horde.HordeManager;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
+import com.zapoc.zombie.ZombiePowerSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -19,9 +21,10 @@ import net.minecraftforge.server.ServerLifecycleHooks;
 public class ServerTickHandler {
 
     private static int tickCounter = 0;
-
-    // Загружаем BedSavedData только один раз
     private static boolean loaded = false;
+
+    // Чтобы не спамить усилением каждый тик
+    private static int lastZombieDay = -1;
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
@@ -34,20 +37,16 @@ public class ServerTickHandler {
             return;
 
         // ==========================
-        // Загружаем сохранённую кровать
+        // Загрузка BedSavedData
         // ==========================
-
         if (!loaded) {
-
             BedPersistenceManager.loadBed(server.overworld());
-
             loaded = true;
         }
 
         // ==========================
-        // Проверяем раз в 5 тиков
+        // Тик-логика
         // ==========================
-
         tickCounter++;
 
         if (tickCounter < 5)
@@ -56,13 +55,11 @@ public class ServerTickHandler {
         tickCounter = 0;
 
         // ==========================
-        // Проверка общей кровати
+        // Проверка существования кровати
         // ==========================
-
         if (BedManager.hasBed()) {
 
             BlockPos pos = BedManager.getBedPos();
-
             ServerLevel level = server.getLevel(BedManager.getDimension());
 
             if (level == null) {
@@ -74,10 +71,9 @@ public class ServerTickHandler {
                 if (!(level.getBlockState(pos).getBlock() instanceof BedBlock)) {
 
                     BedChunkLoader.unloadChunks(level);
-
                     BedManager.removeBed();
-
                     BedPersistenceManager.saveBed(level);
+
                 }
             }
 
@@ -88,25 +84,44 @@ public class ServerTickHandler {
         }
 
         // ==========================
-        // HUD
+        // День
         // ==========================
+        int day = (int) (server.overworld().getDayTime() / 24000L);
 
-        int day = (int) (server.overworld().getDayTime() / 24000L) + 1;
+        HordeManager.setCurrentDay(day);
 
         int daysLeft = 10 - ((day - 1) % 10);
 
-        boolean hordeNight = false;
-
         long time = server.overworld().getDayTime() % 24000L;
 
+        // ==========================
+        // Орда
+        // ==========================
         if (daysLeft == 1 && time >= 13000) {
-            hordeNight = true;
+
+            HordeManager.startHorde();
+
+        } else {
+
+            HordeManager.stopHorde();
+
+        }
+
+        boolean hordeNight = HordeManager.isHordeActive();
+
+        // ==========================
+        // Усиление зомби
+        // ==========================
+        if (day != lastZombieDay) {
+
+            ZombiePowerSystem.applyToWorld(server.overworld(), day);
+            lastZombieDay = day;
+
         }
 
         // ==========================
-        // Отправляем HUD
+        // HUD
         // ==========================
-
         NetworkHandler.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
                 new HudSyncPacket(
@@ -119,6 +134,9 @@ public class ServerTickHandler {
     }
 
     public static void resetLoadedFlag() {
+
         loaded = false;
+        lastZombieDay = -1;
+
     }
 }
