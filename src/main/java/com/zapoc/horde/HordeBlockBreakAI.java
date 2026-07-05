@@ -12,19 +12,28 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.Path;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class HordeBlockBreakAI {
 
-    private static final double PLAYER_BREAK_TARGET_RADIUS = 14.0;
+    private static final double PLAYER_BREAK_TARGET_RADIUS = 14.0D;
 
     private static final double START_DAMAGE_PER_SECOND = 5.0D;
     private static final double DAMAGE_PER_DAY = 0.35D;
     private static final double MAX_DAMAGE_PER_SECOND = 40.0D;
+
+    private static final double MAX_PATH_MULTIPLIER = 1.8D;
+    private static final int MAX_PATH_EXTRA_NODES = 12;
+    private static final int STUCK_TICKS_REQUIRED = 40;
+
     private static final Map<Long, Double> BREAK_PROGRESS = new HashMap<>();
     private static final Map<String, Long> LAST_HIT_TICK = new HashMap<>();
+
+    private static final Map<Integer, BlockPos> LAST_MOB_POS = new HashMap<>();
+    private static final Map<Integer, Integer> STUCK_TICKS = new HashMap<>();
 
     public static boolean tick(HordeGroup group) {
 
@@ -72,6 +81,9 @@ public class HordeBlockBreakAI {
         if (frontBlock == null)
             return false;
 
+        if (!shouldBreakBlock(level, mob, targetPos, frontBlock))
+            return false;
+
         mob.getNavigation().stop();
 
         breakWall3x3(level, mob, frontBlock, targetPos);
@@ -114,8 +126,11 @@ public class HordeBlockBreakAI {
         Direction direction = getDirectionToTarget(mob.blockPosition(), targetPos);
 
         BlockPos mobPos = mob.blockPosition();
-
         BlockPos front = mobPos.relative(direction, 1);
+
+        if (isSimpleStep(level, front)) {
+            return null;
+        }
 
         for (int y = 0; y <= 2; y++) {
 
@@ -127,6 +142,82 @@ public class HordeBlockBreakAI {
         }
 
         return null;
+    }
+
+    private static boolean shouldBreakBlock(ServerLevel level, Mob mob, BlockPos targetPos, BlockPos frontBlock) {
+
+        if (isSimpleStep(level, frontBlock))
+            return false;
+
+        if (isMobStuck(mob))
+            return true;
+
+        return !hasGoodEnoughPath(mob, targetPos);
+    }
+
+    private static boolean hasGoodEnoughPath(Mob mob, BlockPos targetPos) {
+
+        Path path = mob.getNavigation().createPath(targetPos, 0);
+
+        if (path == null)
+            return false;
+
+        if (!path.canReach())
+            return false;
+
+        int directDistance = getHorizontalDistance(mob.blockPosition(), targetPos);
+        int maxAllowedNodes = (int) (directDistance * MAX_PATH_MULTIPLIER) + MAX_PATH_EXTRA_NODES;
+
+        if (maxAllowedNodes < 8)
+            maxAllowedNodes = 8;
+
+        return path.getNodeCount() <= maxAllowedNodes;
+    }
+
+    private static int getHorizontalDistance(BlockPos from, BlockPos to) {
+
+        int dx = Math.abs(from.getX() - to.getX());
+        int dz = Math.abs(from.getZ() - to.getZ());
+
+        return dx + dz;
+    }
+
+    private static boolean isMobStuck(Mob mob) {
+
+        int id = mob.getId();
+        BlockPos currentPos = mob.blockPosition();
+        BlockPos lastPos = LAST_MOB_POS.get(id);
+
+        if (lastPos == null) {
+            LAST_MOB_POS.put(id, currentPos);
+            STUCK_TICKS.put(id, 0);
+            return false;
+        }
+
+        if (!lastPos.equals(currentPos)) {
+            LAST_MOB_POS.put(id, currentPos);
+            STUCK_TICKS.put(id, 0);
+            return false;
+        }
+
+        int stuckTicks = STUCK_TICKS.getOrDefault(id, 0) + 1;
+        STUCK_TICKS.put(id, stuckTicks);
+
+        return stuckTicks >= STUCK_TICKS_REQUIRED;
+    }
+
+    private static boolean isSimpleStep(ServerLevel level, BlockPos front) {
+
+        if (!isSolidCollision(level, front))
+            return false;
+
+        if (isSolidCollision(level, front.above()))
+            return false;
+
+        if (isSolidCollision(level, front.above(2)))
+            return false;
+
+        return true;
     }
 
     private static void breakWall3x3(ServerLevel level, Mob breaker, BlockPos frontBlock, BlockPos targetPos) {
@@ -199,6 +290,8 @@ public class HordeBlockBreakAI {
         );
 
         if (progress >= requiredProgress) {
+
+            level.destroyBlock(pos, true);
             BREAK_PROGRESS.remove(blockKey);
             LAST_HIT_TICK.remove(hitKey);
 
@@ -218,10 +311,17 @@ public class HordeBlockBreakAI {
         if (!BlockLevelSystem.canBreakerBreak(level, pos))
             return false;
 
-        if (state.getCollisionShape(level, pos).isEmpty())
+        return isSolidCollision(level, pos);
+    }
+
+    private static boolean isSolidCollision(ServerLevel level, BlockPos pos) {
+
+        BlockState state = level.getBlockState(pos);
+
+        if (state.isAir())
             return false;
 
-        return true;
+        return !state.getCollisionShape(level, pos).isEmpty();
     }
 
     private static double getBlockDamagePerTick() {
@@ -259,5 +359,7 @@ public class HordeBlockBreakAI {
     public static void reset() {
         BREAK_PROGRESS.clear();
         LAST_HIT_TICK.clear();
+        LAST_MOB_POS.clear();
+        STUCK_TICKS.clear();
     }
 }
