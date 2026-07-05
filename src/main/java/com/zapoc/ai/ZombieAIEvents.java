@@ -11,12 +11,16 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashSet;
 import java.util.Set;
 
+@Mod.EventBusSubscriber
 public class ZombieAIEvents {
+
+    private static final String HORDE_GROUP_NUMBER_TAG = "ZapocHordeGroupNumber";
 
     private static final Set<ResourceLocation> TARGET_TYPES = new HashSet<>();
 
@@ -73,9 +77,7 @@ public class ZombieAIEvents {
 
         mob.goalSelector.addGoal(2, new GoToBedGoal(mob));
 
-        if (HordeManager.isHordeActive()) {
-            HordeGroupManager.addZombie(mob);
-        }
+        tryAddToHordeGroup(mob);
     }
 
     @SubscribeEvent
@@ -94,10 +96,7 @@ public class ZombieAIEvents {
 
         ZombieRoleAI.tick(mob);
 
-        if (!HordeManager.isHordeActive())
-            return;
-
-        HordeGroupManager.addZombie(mob);
+        tryAddToHordeGroup(mob);
     }
 
     @SubscribeEvent
@@ -135,6 +134,21 @@ public class ZombieAIEvents {
             return;
 
         HordeGroupManager.removeZombie(mob);
+    }
+
+    private static void tryAddToHordeGroup(Mob mob) {
+
+        if (!HordeManager.isHordeActive())
+            return;
+
+        int currentHorde = HordeManager.getHordeNumber();
+        int mobHorde = mob.getPersistentData().getInt(HORDE_GROUP_NUMBER_TAG);
+
+        if (mobHorde == currentHorde)
+            return;
+
+        HordeGroupManager.addZombie(mob);
+        mob.getPersistentData().putInt(HORDE_GROUP_NUMBER_TAG, currentHorde);
     }
 
     private static void protectFromSun(Mob mob) {

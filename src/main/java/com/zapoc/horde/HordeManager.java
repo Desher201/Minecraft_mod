@@ -3,11 +3,9 @@ package com.zapoc.horde;
 public class HordeManager {
 
     private static int currentDay = 1;
-
     private static final int HORDE_INTERVAL = 10;
 
     private static boolean hordeActive = false;
-
     private static int hordeNumber = 0;
 
     public static int getCurrentDay() {
@@ -31,6 +29,7 @@ public class HordeManager {
         hordeNumber++;
 
         HordeGroupManager.createGroups();
+        HordeWaveSpawner.start();
 
         System.out.println("===== HORDE STARTED =====");
         System.out.println("Horde #" + hordeNumber);
@@ -44,6 +43,7 @@ public class HordeManager {
 
         hordeActive = false;
 
+        HordeWaveSpawner.stop();
         HordeGroupManager.clear();
 
         System.out.println("===== HORDE ENDED =====");

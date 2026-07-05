@@ -5,6 +5,7 @@ import com.zapoc.bed.BedManager;
 import com.zapoc.bed.BedPersistenceManager;
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.horde.HordeWaveSpawner;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
 import com.zapoc.zombie.ZombiePowerSystem;
@@ -23,7 +24,6 @@ public class ServerTickHandler {
 
     private static int tickCounter = 0;
     private static boolean loaded = false;
-
     private static int lastZombieDay = -1;
 
     @SubscribeEvent
@@ -81,21 +81,20 @@ public class ServerTickHandler {
         HordeManager.setCurrentDay(day);
 
         int daysLeft = HordeManager.getDaysUntilNextHorde();
-
         long time = server.overworld().getDayTime() % 24000L;
 
         if (daysLeft == 1 && time >= 13000) {
-
             HordeManager.startHorde();
-
         } else {
-
             HordeManager.stopHorde();
         }
 
         boolean hordeNight = HordeManager.isHordeActive();
 
         if (hordeNight) {
+
+            HordeWaveSpawner.tick(server);
+
             HordeGroupManager.cleanupDeadZombies();
             HordeGroupManager.tickGroups();
         }
@@ -108,12 +107,7 @@ public class ServerTickHandler {
 
         NetworkHandler.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
-                new HudSyncPacket(
-                        day,
-                        daysLeft,
-                        hordeNight,
-                        BedManager.isHardcore()
-                )
+                new HudSyncPacket(day, daysLeft, hordeNight, BedManager.isHardcore())
         );
     }
 
@@ -121,6 +115,8 @@ public class ServerTickHandler {
 
         loaded = false;
         lastZombieDay = -1;
+
+        HordeWaveSpawner.stop();
         HordeGroupManager.clear();
     }
 }

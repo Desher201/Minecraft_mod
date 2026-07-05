@@ -14,7 +14,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class HordeBedAttackAI {
@@ -90,7 +92,9 @@ public class HordeBedAttackAI {
 
     private static ServerLevel getGroupLevel(HordeGroup group) {
 
-        for (Mob mob : group.getZombies()) {
+        List<Mob> zombies = getZombiesSnapshot(group);
+
+        for (Mob mob : zombies) {
 
             if (mob == null)
                 continue;
@@ -110,7 +114,9 @@ public class HordeBedAttackAI {
 
         int count = 0;
 
-        for (Mob mob : group.getZombies()) {
+        List<Mob> zombies = getZombiesSnapshot(group);
+
+        for (Mob mob : zombies) {
 
             if (mob == null)
                 continue;
@@ -128,7 +134,9 @@ public class HordeBedAttackAI {
 
     private static void swingAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos, BlockState bedState) {
 
-        for (Mob mob : group.getZombies()) {
+        List<Mob> zombies = getZombiesSnapshot(group);
+
+        for (Mob mob : zombies) {
 
             if (mob == null)
                 continue;
@@ -207,7 +215,9 @@ public class HordeBedAttackAI {
 
     private static void clearTargets(HordeGroup group) {
 
-        for (Mob mob : group.getZombies()) {
+        List<Mob> zombies = getZombiesSnapshot(group);
+
+        for (Mob mob : zombies) {
 
             if (mob == null)
                 continue;
@@ -217,6 +227,14 @@ public class HordeBedAttackAI {
 
             mob.setTarget(null);
         }
+    }
+
+    private static List<Mob> getZombiesSnapshot(HordeGroup group) {
+
+        if (group == null)
+            return new ArrayList<>();
+
+        return new ArrayList<>(group.getZombies());
     }
 
     private static void destroyBedWithoutDrop(ServerLevel level, BlockPos bedPos, BlockState bedState) {
