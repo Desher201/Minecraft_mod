@@ -8,9 +8,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
@@ -18,8 +21,8 @@ import java.util.Map;
 
 public class HordeBedAttackAI {
 
-    private static final double ATTACK_RADIUS = 5.0;
-    private static final double HELPER_RADIUS = 6.0;
+    private static final double ATTACK_RADIUS = 2.8;
+    private static final double HELPER_RADIUS = 3.5;
 
     private static final int BREAK_PROGRESS_REQUIRED = 80;
 
@@ -52,14 +55,6 @@ public class HordeBedAttackAI {
         if (bedPos == null)
             return false;
 
-        double distanceToBed = leader.distanceToSqr(Vec3.atCenterOf(bedPos));
-
-        if (distanceToBed > ATTACK_RADIUS * ATTACK_RADIUS) {
-
-            BREAK_PROGRESS.remove(group.getId());
-            return false;
-        }
-
         BlockState bedState = level.getBlockState(bedPos);
 
         if (!(bedState.getBlock() instanceof BedBlock)) {
@@ -68,19 +63,29 @@ public class HordeBedAttackAI {
             return false;
         }
 
+        if (!canMobReachBed(level, leader, bedPos)) {
+
+            BREAK_PROGRESS.remove(group.getId());
+            return false;
+        }
+
         clearTargets(group);
 
-        int attackers = countAttackers(group, bedPos);
+        int attackers = countAttackers(level, group, bedPos);
 
-        if (attackers <= 0)
-            attackers = 1;
+        if (attackers <= 0) {
+
+            BREAK_PROGRESS.remove(group.getId());
+            return false;
+        }
 
         int progress = BREAK_PROGRESS.getOrDefault(group.getId(), 0);
+
         progress += attackers;
 
         BREAK_PROGRESS.put(group.getId(), progress);
 
-        swingAttackers(group, bedPos);
+        swingAttackers(level, group, bedPos);
 
         if (progress >= BREAK_PROGRESS_REQUIRED) {
 
@@ -101,7 +106,7 @@ public class HordeBedAttackAI {
         return true;
     }
 
-    private static int countAttackers(HordeGroup group, BlockPos bedPos) {
+    private static int countAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos) {
 
         int count = 0;
 
@@ -113,9 +118,7 @@ public class HordeBedAttackAI {
             if (!mob.isAlive())
                 continue;
 
-            double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
-
-            if (distance <= HELPER_RADIUS * HELPER_RADIUS) {
+            if (canMobHelpAttackBed(level, mob, bedPos)) {
                 count++;
             }
         }
@@ -123,7 +126,7 @@ public class HordeBedAttackAI {
         return count;
     }
 
-    private static void swingAttackers(HordeGroup group, BlockPos bedPos) {
+    private static void swingAttackers(ServerLevel level, HordeGroup group, BlockPos bedPos) {
 
         for (Mob mob : group.getZombies()) {
 
@@ -133,12 +136,56 @@ public class HordeBedAttackAI {
             if (!mob.isAlive())
                 continue;
 
-            double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
-
-            if (distance <= HELPER_RADIUS * HELPER_RADIUS) {
+            if (canMobHelpAttackBed(level, mob, bedPos)) {
                 mob.swing(InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    private static boolean canMobHelpAttackBed(ServerLevel level, Mob mob, BlockPos bedPos) {
+
+        double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
+
+        if (distance > HELPER_RADIUS * HELPER_RADIUS)
+            return false;
+
+        return hasClearLineToBed(level, mob, bedPos);
+    }
+
+    private static boolean canMobReachBed(ServerLevel level, Mob mob, BlockPos bedPos) {
+
+        double distance = mob.distanceToSqr(Vec3.atCenterOf(bedPos));
+
+        if (distance > ATTACK_RADIUS * ATTACK_RADIUS)
+            return false;
+
+        return hasClearLineToBed(level, mob, bedPos);
+    }
+
+    private static boolean hasClearLineToBed(ServerLevel level, Mob mob, BlockPos bedPos) {
+
+        Vec3 start = mob.getEyePosition(1.0F);
+        Vec3 end = Vec3.atCenterOf(bedPos);
+
+        BlockHitResult hit = level.clip(
+                new ClipContext(
+                        start,
+                        end,
+                        ClipContext.Block.COLLIDER,
+                        ClipContext.Fluid.NONE,
+                        mob
+                )
+        );
+
+        if (hit.getType() != HitResult.Type.BLOCK)
+            return false;
+
+        BlockPos hitPos = hit.getBlockPos();
+
+        if (hitPos.equals(bedPos))
+            return true;
+
+        return level.getBlockState(hitPos).getBlock() instanceof BedBlock;
     }
 
     private static void clearTargets(HordeGroup group) {

@@ -8,6 +8,8 @@ import java.util.List;
 
 public class HordeGroup {
 
+    private static final String LEADER_MARK_TAG = "ZapocHordeLeaderMark";
+
     private final int id;
     private final HordeAttackPoint attackPoint;
     private final List<Mob> zombies = new ArrayList<>();
@@ -37,16 +39,16 @@ public class HordeGroup {
         return leader;
     }
 
-    public void setLeader(Mob leader) {
+    public void setLeader(Mob newLeader) {
 
-        if (this.leader != null) {
-            clearLeaderMark(this.leader);
+        if (leader != null) {
+            clearLeaderMark(leader);
         }
 
-        this.leader = leader;
+        leader = newLeader;
 
-        if (this.leader != null) {
-            markLeader(this.leader);
+        if (leader != null) {
+            markLeader(leader);
         }
     }
 
@@ -63,11 +65,17 @@ public class HordeGroup {
         if (mob == null)
             return;
 
+        if (mob.isRemoved())
+            return;
+
+        if (!mob.isAlive())
+            return;
+
         if (!zombies.contains(mob)) {
             zombies.add(mob);
         }
 
-        if (leader == null) {
+        if (leader == null || leader.isRemoved() || !leader.isAlive()) {
             setLeader(mob);
         }
     }
@@ -83,14 +91,9 @@ public class HordeGroup {
 
             clearLeaderMark(mob);
 
-            if (zombies.isEmpty()) {
+            Mob newLeader = findNewLeader();
 
-                leader = null;
-
-            } else {
-
-                setLeader(zombies.get(0));
-            }
+            setLeader(newLeader);
         }
     }
 
@@ -98,7 +101,41 @@ public class HordeGroup {
         return zombies.size();
     }
 
+    public void clearMarks() {
+
+        for (Mob mob : zombies) {
+
+            if (mob == null)
+                continue;
+
+            clearLeaderMark(mob);
+        }
+
+        leader = null;
+    }
+
+    private Mob findNewLeader() {
+
+        for (Mob mob : zombies) {
+
+            if (mob == null)
+                continue;
+
+            if (mob.isRemoved())
+                continue;
+
+            if (!mob.isAlive())
+                continue;
+
+            return mob;
+        }
+
+        return null;
+    }
+
     private void markLeader(Mob mob) {
+
+        mob.getPersistentData().putBoolean(LEADER_MARK_TAG, true);
 
         mob.setGlowingTag(true);
         mob.setCustomName(new TextComponent("HORDE LEADER G" + id));
@@ -106,6 +143,14 @@ public class HordeGroup {
     }
 
     private void clearLeaderMark(Mob mob) {
+
+        if (mob == null)
+            return;
+
+        if (!mob.getPersistentData().getBoolean(LEADER_MARK_TAG))
+            return;
+
+        mob.getPersistentData().remove(LEADER_MARK_TAG);
 
         mob.setGlowingTag(false);
         mob.setCustomName(null);

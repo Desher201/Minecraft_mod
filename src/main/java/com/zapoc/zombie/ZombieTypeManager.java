@@ -1,35 +1,38 @@
 package com.zapoc.zombie;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.Mob;
 
 public class ZombieTypeManager {
 
     private static final String TAG = "ZapocZombieType";
 
-    /**
-     * Сохранить тип зомби
-     */
-    public static void setType(Zombie zombie, ZombieType type) {
+    public static void setType(Mob mob, ZombieType type) {
 
-        CompoundTag tag = zombie.getPersistentData();
+        if (mob == null || type == null)
+            return;
+
+        CompoundTag tag = mob.getPersistentData();
 
         tag.putString(TAG, type.name());
     }
 
-    /**
-     * Получить тип
-     */
-    public static ZombieType getType(Zombie zombie) {
+    public static ZombieType getType(Mob mob) {
 
-        CompoundTag tag = zombie.getPersistentData();
+        if (mob == null)
+            return ZombieType.NORMAL;
+
+        CompoundTag tag = mob.getPersistentData();
 
         if (!tag.contains(TAG))
             return ZombieType.NORMAL;
 
         try {
+
             return ZombieType.valueOf(tag.getString(TAG));
+
         } catch (Exception e) {
+
             return ZombieType.NORMAL;
         }
     }

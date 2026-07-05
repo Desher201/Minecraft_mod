@@ -183,7 +183,13 @@ public class HordeGroupManager {
 
     public static void clear() {
 
+        for (HordeGroup group : GROUPS) {
+            group.clearMarks();
+        }
+
         GROUPS.clear();
+
         HordeBedAttackAI.reset();
+        HordeBlockBreakAI.reset();
     }
 }

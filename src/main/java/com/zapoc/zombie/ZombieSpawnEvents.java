@@ -71,7 +71,7 @@ public class ZombieSpawnEvents {
 
         zombie.setCustomNameVisible(true);
 
-        ZombieAIController.applyAI(zombie, type);
+        ZombieTypeApplier.apply(zombie, type, day);
     }
 
     private static boolean isZombieLike(Monster monster) {

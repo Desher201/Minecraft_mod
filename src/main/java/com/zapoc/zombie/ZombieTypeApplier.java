@@ -6,11 +6,14 @@ import net.minecraft.world.entity.monster.Zombie;
 public class ZombieTypeApplier {
 
     public static void apply(Zombie zombie, ZombieType type) {
+        apply(zombie, type, 1);
+    }
+
+    public static void apply(Zombie zombie, ZombieType type, int day) {
 
         switch (type) {
 
             case NORMAL -> {
-                // Без изменений
             }
 
             case RUNNER -> {
@@ -52,17 +55,17 @@ public class ZombieTypeApplier {
 
             case BREAKER -> {
 
-                zombie.getAttribute(Attributes.MAX_HEALTH)
-                        .setBaseValue(35D);
+                if (day >= 20) {
 
-                zombie.setHealth(35F);
+                    zombie.getAttribute(Attributes.MAX_HEALTH)
+                            .setBaseValue(35D);
 
-                zombie.getAttribute(Attributes.ATTACK_DAMAGE)
-                        .setBaseValue(7D);
+                    zombie.setHealth(35F);
+
+                    zombie.getAttribute(Attributes.ATTACK_DAMAGE)
+                            .setBaseValue(7D);
+                }
             }
-
         }
-
     }
-
 }

@@ -1,9 +1,13 @@
 package com.zapoc.ai;
 
 import com.zapoc.bed.BedManager;
+import com.zapoc.horde.HordeBlockBreakAI;
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.zombie.ZombieType;
+import com.zapoc.zombie.ZombieTypeManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
@@ -78,6 +82,21 @@ public class GoToBedGoal extends Goal {
 
         if (targetBed == null)
             return;
+
+        if (ZombieTypeManager.getType(mob) == ZombieType.BREAKER) {
+
+            BlockPos breakTarget = targetBed;
+
+            LivingEntity currentTarget = mob.getTarget();
+
+            if (currentTarget != null && currentTarget.isAlive()) {
+                breakTarget = currentTarget.blockPosition();
+            }
+
+            if (HordeBlockBreakAI.tickSingle(mob, breakTarget)) {
+                return;
+            }
+        }
 
         repathCooldown--;
 

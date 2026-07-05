@@ -2,6 +2,7 @@ package com.zapoc.ai;
 
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.zombie.ZombieRoleAI;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
@@ -84,13 +85,15 @@ public class ZombieAIEvents {
         if (!(event.getEntityLiving() instanceof Mob mob))
             return;
 
-        if (!HordeManager.isHordeActive())
-            return;
-
         if (!isTargetMob(mob))
             return;
 
+        if (!HordeManager.isHordeActive())
+            return;
+
         HordeGroupManager.addZombie(mob);
+
+        ZombieRoleAI.tick(mob);
     }
 
     @SubscribeEvent
