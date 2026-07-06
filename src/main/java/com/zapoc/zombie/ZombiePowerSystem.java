@@ -1,22 +1,18 @@
 package com.zapoc.zombie;
 
+import com.zapoc.config.ZapocConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 
 public class ZombiePowerSystem {
 
-    private static final double BASE = 1.015D;
-
-    private static final double MAX_HEALTH_POWER = 6.0D;
-    private static final double MAX_DAMAGE_POWER = 5.0D;
-
     public static double getPower(int day) {
 
         if (day < 1)
             day = 1;
 
-        return Math.pow(BASE, day);
+        return Math.pow(ZapocConfig.HEALTH_POWER_BASE.get(), day);
     }
 
     public static void applyToZombie(Zombie zombie, int day) {
@@ -31,14 +27,17 @@ public class ZombiePowerSystem {
 
         double healthPower = getPower(day);
 
-        if (healthPower > MAX_HEALTH_POWER) {
-            healthPower = MAX_HEALTH_POWER;
+        double maxHealthPower = ZapocConfig.MAX_HEALTH_POWER.get();
+
+        if (healthPower > maxHealthPower) {
+            healthPower = maxHealthPower;
         }
 
-        double damagePower = 1.0D + day * 0.025D;
+        double damagePower = 1.0D + day * ZapocConfig.DAMAGE_PER_DAY.get();
+        double maxDamagePower = ZapocConfig.MAX_DAMAGE_POWER.get();
 
-        if (damagePower > MAX_DAMAGE_POWER) {
-            damagePower = MAX_DAMAGE_POWER;
+        if (damagePower > maxDamagePower) {
+            damagePower = maxDamagePower;
         }
 
         double maxHealth = getBaseHealth(type, day) * healthPower;
@@ -122,17 +121,47 @@ public class ZombiePowerSystem {
 
         return switch (type) {
 
-            case RUNNER -> getCappedSpeed(0.32D, day, 0.00035D, 0.38D);
+            case RUNNER -> getCappedSpeed(
+                    ZapocConfig.RUNNER_BASE_SPEED.get(),
+                    day,
+                    0.00035D,
+                    ZapocConfig.RUNNER_MAX_SPEED.get()
+            );
 
-            case TANK -> getCappedSpeed(0.17D, day, 0.00015D, 0.22D);
+            case TANK -> getCappedSpeed(
+                    ZapocConfig.TANK_BASE_SPEED.get(),
+                    day,
+                    0.00015D,
+                    ZapocConfig.TANK_MAX_SPEED.get()
+            );
 
-            case HUNTER -> getCappedSpeed(0.27D, day, 0.00025D, 0.33D);
+            case HUNTER -> getCappedSpeed(
+                    ZapocConfig.HUNTER_BASE_SPEED.get(),
+                    day,
+                    0.00025D,
+                    ZapocConfig.HUNTER_MAX_SPEED.get()
+            );
 
-            case BREAKER -> getCappedSpeed(0.22D, day, 0.00025D, 0.28D);
+            case BREAKER -> getCappedSpeed(
+                    ZapocConfig.BREAKER_BASE_SPEED.get(),
+                    day,
+                    0.00025D,
+                    ZapocConfig.BREAKER_MAX_SPEED.get()
+            );
 
-            case CRAWLER -> getCappedSpeed(0.22D, day, 0.00020D, 0.27D);
+            case CRAWLER -> getCappedSpeed(
+                    ZapocConfig.CRAWLER_BASE_SPEED.get(),
+                    day,
+                    0.00020D,
+                    ZapocConfig.CRAWLER_MAX_SPEED.get()
+            );
 
-            case NORMAL -> getCappedSpeed(0.23D, day, 0.00020D, 0.29D);
+            case NORMAL -> getCappedSpeed(
+                    ZapocConfig.NORMAL_BASE_SPEED.get(),
+                    day,
+                    0.00020D,
+                    ZapocConfig.NORMAL_MAX_SPEED.get()
+            );
         };
     }
 

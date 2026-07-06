@@ -4,11 +4,14 @@ import com.zapoc.hardcore.HardcoreEvents;
 import com.zapoc.ai.ZombieAIEvents;
 import com.zapoc.bed.BedEvents;
 import com.zapoc.client.HudOverlay;
+import com.zapoc.config.ZapocConfig;
 import com.zapoc.network.NetworkHandler;
 import com.zapoc.server.ServerTickHandler;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
 @Mod("zapocmod")
@@ -17,6 +20,8 @@ public class ZapocMod {
     public ZapocMod() {
 
         System.out.println("===== ZAPOC MOD START =====");
+
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ZapocConfig.SERVER_SPEC);
 
         // Регистрация сети
         NetworkHandler.register();

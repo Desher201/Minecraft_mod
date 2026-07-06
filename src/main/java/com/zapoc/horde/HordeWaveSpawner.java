@@ -1,6 +1,7 @@
 package com.zapoc.horde;
 
 import com.zapoc.bed.BedManager;
+import com.zapoc.config.ZapocConfig;
 import com.zapoc.zombie.ZombieAIController;
 import com.zapoc.zombie.ZombiePowerSystem;
 import com.zapoc.zombie.ZombieType;
@@ -20,24 +21,9 @@ import java.util.Random;
 
 public class HordeWaveSpawner {
 
-    private static final int WAVE_INTERVAL_TICKS = 20 * 40;
-    private static final int FIRST_WAVE_DELAY_TICKS = 20 * 5;
-
-    private static final int SPAWN_BATCH_INTERVAL_TICKS = 8;
-    private static final int SPAWNS_PER_BATCH = 3;
-
-    private static final int MIN_SPAWN_DISTANCE = 28;
-    private static final int MAX_SPAWN_DISTANCE = 46;
-
-    private static final int MAX_WAVES = 10;
-    private static final int MAX_ZOMBIES_PER_WAVE = 120;
-    private static final int MAX_ACTIVE_HORDE_ZOMBIES = 180;
-
-    private static final double ACTIVE_ZOMBIE_CHECK_RADIUS = 112.0D;
-
     private static final Random RANDOM = new Random();
 
-    private static int waveTimer = FIRST_WAVE_DELAY_TICKS;
+    private static int waveTimer = getFirstWaveDelayTicks();
     private static int currentWave = 0;
     private static boolean started = false;
 
@@ -49,7 +35,7 @@ public class HordeWaveSpawner {
 
     public static void start() {
 
-        waveTimer = FIRST_WAVE_DELAY_TICKS;
+        waveTimer = getFirstWaveDelayTicks();
         currentWave = 0;
         started = true;
 
@@ -62,7 +48,7 @@ public class HordeWaveSpawner {
 
     public static void stop() {
 
-        waveTimer = FIRST_WAVE_DELAY_TICKS;
+        waveTimer = getFirstWaveDelayTicks();
         currentWave = 0;
         started = false;
 
@@ -112,7 +98,7 @@ public class HordeWaveSpawner {
         if (bedPos == null)
             return;
 
-        if (countActiveHordeZombies(level, bedPos) >= MAX_ACTIVE_HORDE_ZOMBIES) {
+        if (countActiveHordeZombies(level, bedPos) >= ZapocConfig.MAX_ACTIVE_HORDE_ZOMBIES.get()) {
             waveTimer = 20 * 10;
             return;
         }
@@ -120,7 +106,7 @@ public class HordeWaveSpawner {
         prepareWave();
 
         currentWave++;
-        waveTimer = WAVE_INTERVAL_TICKS;
+        waveTimer = getWaveIntervalTicks();
     }
 
     private static void prepareWave() {
@@ -151,17 +137,17 @@ public class HordeWaveSpawner {
         if (spawnBatchTimer > 0)
             return;
 
-        spawnBatchTimer = SPAWN_BATCH_INTERVAL_TICKS;
+        spawnBatchTimer = ZapocConfig.SPAWN_BATCH_INTERVAL_TICKS.get();
 
         int activeZombies = countActiveHordeZombies(level, bedPos);
 
-        if (activeZombies >= MAX_ACTIVE_HORDE_ZOMBIES) {
+        if (activeZombies >= ZapocConfig.MAX_ACTIVE_HORDE_ZOMBIES.get()) {
             pendingSpawnCount = 0;
             System.out.println("[ZApoc] Wave " + pendingSpawnWave + " stopped because active zombie limit was reached.");
             return;
         }
 
-        int amount = Math.min(SPAWNS_PER_BATCH, pendingSpawnCount);
+        int amount = Math.min(ZapocConfig.SPAWNS_PER_BATCH.get(), pendingSpawnCount);
 
         for (int i = 0; i < amount; i++) {
 
@@ -226,7 +212,9 @@ public class HordeWaveSpawner {
         for (int attempt = 0; attempt < 20; attempt++) {
 
             int directionIndex = (index + attempt) % 4;
-            int distance = MIN_SPAWN_DISTANCE + RANDOM.nextInt(MAX_SPAWN_DISTANCE - MIN_SPAWN_DISTANCE + 1);
+            int minDistance = ZapocConfig.MIN_SPAWN_DISTANCE.get();
+            int maxDistance = Math.max(minDistance, ZapocConfig.MAX_SPAWN_DISTANCE.get());
+            int distance = minDistance + RANDOM.nextInt(maxDistance - minDistance + 1);
             int sideOffset = RANDOM.nextInt(21) - 10;
 
             int x = bedPos.getX();
@@ -276,7 +264,7 @@ public class HordeWaveSpawner {
 
     private static int countActiveHordeZombies(ServerLevel level, BlockPos bedPos) {
 
-        AABB area = new AABB(bedPos).inflate(ACTIVE_ZOMBIE_CHECK_RADIUS);
+        AABB area = new AABB(bedPos).inflate(ZapocConfig.ACTIVE_ZOMBIE_CHECK_RADIUS.get());
 
         return level.getEntitiesOfClass(
                 Zombie.class,
@@ -291,8 +279,10 @@ public class HordeWaveSpawner {
 
         int waves = 4 + day / 15;
 
-        if (waves > MAX_WAVES)
-            return MAX_WAVES;
+        int maxWaves = ZapocConfig.MAX_WAVES.get();
+
+        if (waves > maxWaves)
+            return maxWaves;
 
         return waves;
     }
@@ -301,8 +291,10 @@ public class HordeWaveSpawner {
 
         int count = 22 + day / 3 + wave * 8;
 
-        if (count > MAX_ZOMBIES_PER_WAVE)
-            return MAX_ZOMBIES_PER_WAVE;
+        int maxZombies = ZapocConfig.MAX_ZOMBIES_PER_WAVE.get();
+
+        if (count > maxZombies)
+            return maxZombies;
 
         return count;
     }
@@ -337,6 +329,11 @@ public class HordeWaveSpawner {
             return ZombieType.BREAKER;
 
         int roll = RANDOM.nextInt(100);
+        int breakerChance = getBreakerChance(day);
+        int crawlerChance = getCrawlerChance(day);
+        int runnerChance = ZapocConfig.RUNNER_CHANCE.get();
+        int tankChance = ZapocConfig.TANK_CHANCE.get();
+        int hunterChance = ZapocConfig.HUNTER_CHANCE.get();
 
         if (day < 20) {
 
@@ -351,16 +348,16 @@ public class HordeWaveSpawner {
 
         if (day < 40) {
 
-            if (roll < 18)
+            if (roll < breakerChance)
                 return ZombieType.BREAKER;
 
-            if (roll < 32)
+            if (roll < breakerChance + runnerChance)
                 return ZombieType.RUNNER;
 
-            if (roll < 42)
+            if (roll < breakerChance + runnerChance + crawlerChance)
                 return ZombieType.CRAWLER;
 
-            if (roll < 52)
+            if (roll < breakerChance + runnerChance + crawlerChance + tankChance)
                 return ZombieType.TANK;
 
             return ZombieType.NORMAL;
@@ -368,19 +365,19 @@ public class HordeWaveSpawner {
 
         if (day < 60) {
 
-            if (roll < 24)
+            if (roll < breakerChance)
                 return ZombieType.BREAKER;
 
-            if (roll < 40)
+            if (roll < breakerChance + runnerChance)
                 return ZombieType.RUNNER;
 
-            if (roll < 55)
+            if (roll < breakerChance + runnerChance + crawlerChance)
                 return ZombieType.CRAWLER;
 
-            if (roll < 70)
+            if (roll < breakerChance + runnerChance + crawlerChance + tankChance)
                 return ZombieType.TANK;
 
-            if (roll < 82)
+            if (roll < breakerChance + runnerChance + crawlerChance + tankChance + hunterChance)
                 return ZombieType.HUNTER;
 
             return ZombieType.NORMAL;
@@ -388,39 +385,75 @@ public class HordeWaveSpawner {
 
         if (day < 80) {
 
-            if (roll < 30)
+            if (roll < breakerChance)
                 return ZombieType.BREAKER;
 
-            if (roll < 46)
+            if (roll < breakerChance + runnerChance)
                 return ZombieType.RUNNER;
 
-            if (roll < 62)
+            if (roll < breakerChance + runnerChance + crawlerChance)
                 return ZombieType.CRAWLER;
 
-            if (roll < 78)
+            if (roll < breakerChance + runnerChance + crawlerChance + tankChance)
                 return ZombieType.TANK;
 
-            if (roll < 90)
+            if (roll < breakerChance + runnerChance + crawlerChance + tankChance + hunterChance)
                 return ZombieType.HUNTER;
 
             return ZombieType.NORMAL;
         }
 
-        if (roll < 38)
+        if (roll < breakerChance)
             return ZombieType.BREAKER;
 
-        if (roll < 52)
+        if (roll < breakerChance + runnerChance)
             return ZombieType.RUNNER;
 
-        if (roll < 68)
+        if (roll < breakerChance + runnerChance + crawlerChance)
             return ZombieType.CRAWLER;
 
-        if (roll < 82)
+        if (roll < breakerChance + runnerChance + crawlerChance + tankChance)
             return ZombieType.TANK;
 
-        if (roll < 94)
+        if (roll < breakerChance + runnerChance + crawlerChance + tankChance + hunterChance)
             return ZombieType.HUNTER;
 
         return ZombieType.NORMAL;
+    }
+
+    private static int getWaveIntervalTicks() {
+        return ZapocConfig.WAVE_INTERVAL_SECONDS.get() * 20;
+    }
+
+    private static int getFirstWaveDelayTicks() {
+        return ZapocConfig.FIRST_WAVE_DELAY_SECONDS.get() * 20;
+    }
+
+    private static int getBreakerChance(int day) {
+
+        if (day >= 80)
+            return ZapocConfig.BREAKER_CHANCE_DAY_80.get();
+
+        if (day >= 60)
+            return ZapocConfig.BREAKER_CHANCE_DAY_60.get();
+
+        if (day >= 40)
+            return ZapocConfig.BREAKER_CHANCE_DAY_40.get();
+
+        return ZapocConfig.BREAKER_CHANCE_DAY_20.get();
+    }
+
+    private static int getCrawlerChance(int day) {
+
+        if (day >= 80)
+            return ZapocConfig.CRAWLER_CHANCE_DAY_80.get();
+
+        if (day >= 60)
+            return ZapocConfig.CRAWLER_CHANCE_DAY_60.get();
+
+        if (day >= 40)
+            return ZapocConfig.CRAWLER_CHANCE_DAY_40.get();
+
+        return ZapocConfig.CRAWLER_CHANCE_DAY_20.get();
     }
 }

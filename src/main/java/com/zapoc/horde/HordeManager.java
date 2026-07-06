@@ -1,9 +1,10 @@
 package com.zapoc.horde;
 
+import com.zapoc.config.ZapocConfig;
+
 public class HordeManager {
 
     private static int currentDay = 1;
-    private static final int HORDE_INTERVAL = 10;
 
     private static boolean hordeActive = false;
     private static int hordeNumber = 0;
@@ -51,10 +52,11 @@ public class HordeManager {
 
     public static int getDaysUntilNextHorde() {
 
-        int days = HORDE_INTERVAL - ((currentDay - 1) % HORDE_INTERVAL);
+        int interval = getHordeInterval();
+        int days = interval - ((currentDay - 1) % interval);
 
         if (days <= 0)
-            days = HORDE_INTERVAL;
+            days = interval;
 
         return days;
     }
@@ -64,6 +66,6 @@ public class HordeManager {
     }
 
     public static int getHordeInterval() {
-        return HORDE_INTERVAL;
+        return ZapocConfig.HORDE_INTERVAL_DAYS.get();
     }
 }
