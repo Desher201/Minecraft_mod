@@ -14,6 +14,7 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
+import com.zapoc.horde.HordeManager;
 
 @Mod.EventBusSubscriber
 public class ZombieSpawnEvents {
@@ -55,7 +56,7 @@ public class ZombieSpawnEvents {
         if (!(event.getWorld() instanceof ServerLevel level))
             return;
 
-        int day = (int) (level.getDayTime() / 24000L) + 1;
+        int day = HordeManager.calculateDay(level.getDayTime());
 
         ZombieType type = ZombieTypeSelector.getType(day);
 

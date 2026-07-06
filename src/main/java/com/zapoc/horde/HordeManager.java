@@ -7,6 +7,7 @@ public class HordeManager {
     private static int currentDay = 1;
 
     private static boolean hordeActive = false;
+    private static boolean forcedHorde = false;
     private static int hordeNumber = 0;
 
     public static int getCurrentDay() {
@@ -17,8 +18,31 @@ public class HordeManager {
         currentDay = Math.max(day, 1);
     }
 
+    public static int calculateDay(long dayTime) {
+        int day = (int) (dayTime / 24000L) + 1;
+
+        if (day < 1)
+            day = 1;
+
+        return day;
+    }
+
     public static boolean isHordeActive() {
         return hordeActive;
+    }
+
+    public static boolean isForcedHorde() {
+        return forcedHorde;
+    }
+
+    public static void forceStartHorde() {
+        forcedHorde = true;
+        startHorde();
+    }
+
+    public static void forceStopHorde() {
+        forcedHorde = false;
+        stopHorde();
     }
 
     public static void startHorde() {

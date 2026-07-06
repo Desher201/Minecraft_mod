@@ -1,111 +1,264 @@
 package com.zapoc.command;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.zapoc.zombie.*;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.zapoc.bed.BedManager;
+import com.zapoc.horde.HordeGroup;
+import com.zapoc.horde.HordeGroupManager;
+import com.zapoc.horde.HordeManager;
+import com.zapoc.horde.HordeWaveSpawner;
+import com.zapoc.zombie.ZombieAIController;
+import com.zapoc.zombie.ZombiePowerSystem;
+import com.zapoc.zombie.ZombieType;
+import com.zapoc.zombie.ZombieTypeApplier;
+import com.zapoc.zombie.ZombieTypeManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.level.Level;
 
 public class ZapocCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 
         dispatcher.register(
-
                 Commands.literal("zapoc")
-
-                        .then(
-                                Commands.literal("spawn")
-
-                                        .then(
-                                                Commands.literal("normal")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.NORMAL))
-                                        )
-
-                                        .then(
-                                                Commands.literal("runner")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.RUNNER))
-                                        )
-
-                                        .then(
-                                                Commands.literal("tank")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.TANK))
-                                        )
-
-                                        .then(
-                                                Commands.literal("hunter")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.HUNTER))
-                                        )
-
-                                        .then(
-                                                Commands.literal("breaker")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.BREAKER))
-                                        )
-
-                                        .then(
-                                                Commands.literal("crawler")
-                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.CRAWLER))
-                                        )
-
-                        )
-
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("info")
+                                .executes(ctx -> info(ctx.getSource())))
+                        .then(Commands.literal("horde")
+                                .then(Commands.literal("start")
+                                        .executes(ctx -> hordeStart(ctx.getSource())))
+                                .then(Commands.literal("stop")
+                                        .executes(ctx -> hordeStop(ctx.getSource())))
+                                .then(Commands.literal("info")
+                                        .executes(ctx -> hordeInfo(ctx.getSource())))
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> hordeClear(ctx.getSource()))))
+                        .then(Commands.literal("day")
+                                .then(Commands.literal("get")
+                                        .executes(ctx -> dayGet(ctx.getSource())))
+                                .then(Commands.literal("set")
+                                        .then(Commands.argument("day", IntegerArgumentType.integer(1))
+                                                .executes(ctx -> daySet(
+                                                        ctx.getSource(),
+                                                        IntegerArgumentType.getInteger(ctx, "day")
+                                                )))))
+                        .then(Commands.literal("bed")
+                                .then(Commands.literal("info")
+                                        .executes(ctx -> bedInfo(ctx.getSource()))))
+                        .then(Commands.literal("spawn")
+                                .then(spawnType("normal", ZombieType.NORMAL))
+                                .then(spawnType("runner", ZombieType.RUNNER))
+                                .then(spawnType("tank", ZombieType.TANK))
+                                .then(spawnType("hunter", ZombieType.HUNTER))
+                                .then(spawnType("breaker", ZombieType.BREAKER))
+                                .then(spawnType("crawler", ZombieType.CRAWLER)))
         );
-
     }
 
-    private static int spawn(CommandSourceStack source, ZombieType type) {
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> spawnType(String name, ZombieType type) {
+
+        return Commands.literal(name)
+                .executes(ctx -> spawn(ctx.getSource(), type, 1))
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 100))
+                        .executes(ctx -> spawn(
+                                ctx.getSource(),
+                                type,
+                                IntegerArgumentType.getInteger(ctx, "count")
+                        )));
+    }
+
+    private static int info(CommandSourceStack source) {
+
+        send(source, "Zapoc info:");
+        send(source, "Day: " + HordeManager.getCurrentDay());
+        send(source, "Days until next horde: " + HordeManager.getDaysUntilNextHorde());
+        send(source, "Horde active: " + HordeManager.isHordeActive());
+        send(source, "Bed exists: " + BedManager.hasBed());
+        send(source, "Hardcore active: " + BedManager.isHardcore());
+
+        return 1;
+    }
+
+    private static int hordeStart(CommandSourceStack source) {
+
+        HordeManager.forceStartHorde();
+        send(source, "Forced horde started.");
+
+        return 1;
+    }
+
+    private static int hordeStop(CommandSourceStack source) {
+
+        HordeManager.forceStopHorde();
+        send(source, "Forced horde stopped.");
+
+        return 1;
+    }
+
+    private static int hordeInfo(CommandSourceStack source) {
+
+        send(source, "Horde info:");
+        send(source, "Active: " + HordeManager.isHordeActive());
+        send(source, "Forced: " + HordeManager.isForcedHorde());
+        send(source, "Horde number: " + HordeManager.getHordeNumber());
+        send(source, "Group count: " + HordeGroupManager.getGroups().size());
+        send(source, "Tracked active zombies: " + countTrackedHordeZombies());
+
+        return 1;
+    }
+
+    private static int hordeClear(CommandSourceStack source) {
+
+        int removed = removeTrackedHordeZombies();
+        HordeWaveSpawner.stop();
+        HordeGroupManager.clear();
+
+        send(source, "Cleared horde groups. Removed tracked zombies: " + removed);
+
+        return 1;
+    }
+
+    private static int dayGet(CommandSourceStack source) {
+
+        int day = HordeManager.calculateDay(source.getLevel().getDayTime());
+        HordeManager.setCurrentDay(day);
+        send(source, "Current day: " + day);
+
+        return 1;
+    }
+
+    private static int daySet(CommandSourceStack source, int day) {
+
+        ServerLevel level = source.getLevel();
+        long time = (long) (day - 1) * 24000L;
+
+        level.setDayTime(time);
+        HordeManager.setCurrentDay(HordeManager.calculateDay(level.getDayTime()));
+
+        send(source, "Set day to " + day + " and time to " + time + ".");
+
+        return 1;
+    }
+
+    private static int bedInfo(CommandSourceStack source) {
+
+        send(source, "Bed info:");
+        send(source, "Exists: " + BedManager.hasBed());
+
+        BlockPos bedPos = BedManager.getBedPos();
+        ResourceKey<Level> dimension = BedManager.getDimension();
+
+        send(source, "Position: " + (bedPos == null ? "none" : bedPos.toShortString()));
+        send(source, "Dimension: " + (dimension == null ? "none" : dimension.location().toString()));
+        send(source, "Hardcore active: " + BedManager.isHardcore());
+
+        return 1;
+    }
+
+    private static int spawn(CommandSourceStack source, ZombieType type, int count) {
 
         try {
-
             ServerPlayer player = source.getPlayerOrException();
             ServerLevel level = player.getLevel();
+            int day = HordeManager.getCurrentDay();
+            int spawned = 0;
 
-            Zombie zombie = EntityType.ZOMBIE.create(level);
+            for (int i = 0; i < count; i++) {
+                Zombie zombie = EntityType.ZOMBIE.create(level);
 
-            if (zombie == null)
-                return 0;
+                if (zombie == null)
+                    continue;
 
-            zombie.moveTo(
-                    player.getX(),
-                    player.getY(),
-                    player.getZ() + 3,
-                    player.getYRot(),
-                    0
-            );
+                double angle = (Math.PI * 2.0D * i) / Math.max(1, count);
+                double distance = 3.0D + (i / 12) * 1.5D;
+                double x = player.getX() + Math.cos(angle) * distance;
+                double z = player.getZ() + Math.sin(angle) * distance;
+                BlockPos spawnPos = new BlockPos(x, player.getY(), z);
+                BlockPos surface = level.getHeightmapPos(
+                        net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                        spawnPos
+                );
 
-            int day = (int) (level.getDayTime() / 24000L) + 1;
+                zombie.moveTo(
+                        surface.getX() + 0.5D,
+                        surface.getY(),
+                        surface.getZ() + 0.5D,
+                        player.getYRot(),
+                        0.0F
+                );
 
-            ZombieTypeManager.setType(zombie, type);
+                zombie.finalizeSpawn(
+                        level,
+                        level.getCurrentDifficultyAt(surface),
+                        MobSpawnType.COMMAND,
+                        null,
+                        null
+                );
 
-            ZombieTypeApplier.apply(zombie, type);
+                zombie.setBaby(false);
+                zombie.setCustomName(null);
+                zombie.setCustomNameVisible(false);
 
-            ZombiePowerSystem.applyToZombie(zombie, day);
+                ZombieTypeManager.setType(zombie, type);
+                ZombieTypeApplier.apply(zombie, type, day);
+                ZombiePowerSystem.applyToZombie(zombie, day);
+                ZombieAIController.applyAI(zombie, type);
 
-            ZombieAIController.applyAI(zombie, type);
+                level.addFreshEntity(zombie);
+                spawned++;
+            }
 
-            zombie.setCustomName(new TextComponent("§c" + type.name()));
-            zombie.setCustomNameVisible(true);
+            send(source, "Spawned " + spawned + " " + type.name().toLowerCase() + " zombie(s).");
 
-            level.addFreshEntity(zombie);
-
-            source.sendSuccess(
-                    new TextComponent("Spawned " + type.name()),
-                    false
-            );
-
-            return 1;
-
+            return spawned;
         } catch (Exception e) {
-
             e.printStackTrace();
-
             return 0;
         }
-
     }
 
+    private static int countTrackedHordeZombies() {
+
+        int count = 0;
+
+        for (HordeGroup group : HordeGroupManager.getGroups()) {
+            for (net.minecraft.world.entity.Mob mob : group.getZombies()) {
+                if (mob != null && mob.isAlive() && !mob.isRemoved()) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static int removeTrackedHordeZombies() {
+
+        int removed = 0;
+
+        for (HordeGroup group : HordeGroupManager.getGroups()) {
+            for (net.minecraft.world.entity.Mob mob : new java.util.ArrayList<>(group.getZombies())) {
+                if (mob != null && !mob.isRemoved()) {
+                    mob.discard();
+                    removed++;
+                }
+            }
+        }
+
+        return removed;
+    }
+
+    private static void send(CommandSourceStack source, String message) {
+
+        source.sendSuccess(new TextComponent(message), false);
+    }
 }

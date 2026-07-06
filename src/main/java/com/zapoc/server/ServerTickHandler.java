@@ -73,20 +73,23 @@ public class ServerTickHandler {
             BedManager.setHardcore(true);
         }
 
-        int day = (int) (server.overworld().getDayTime() / 24000L);
-
-        if (day <= 0)
-            day = 1;
+        int day = HordeManager.calculateDay(server.overworld().getDayTime());
 
         HordeManager.setCurrentDay(day);
 
         int daysLeft = HordeManager.getDaysUntilNextHorde();
         long time = server.overworld().getDayTime() % 24000L;
 
-        if (daysLeft == 1 && time >= 13000) {
-            HordeManager.startHorde();
+        if (HordeManager.isForcedHorde()) {
+            if (!HordeManager.isHordeActive()) {
+                HordeManager.startHorde();
+            }
         } else {
-            HordeManager.stopHorde();
+            if (daysLeft == 1 && time >= 13000) {
+                HordeManager.startHorde();
+            } else {
+                HordeManager.stopHorde();
+            }
         }
 
         boolean hordeNight = HordeManager.isHordeActive();
