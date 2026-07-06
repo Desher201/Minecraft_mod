@@ -15,6 +15,8 @@ public class ZombieTypeSelector {
             return ZombieType.NORMAL;
         }
 
+        if (day >= 20 && roll < 12) return ZombieType.CRAWLER;
+
         if (roll < 50) return ZombieType.NORMAL;
         if (roll < 70) return ZombieType.RUNNER;
         if (roll < 85) return ZombieType.HUNTER;

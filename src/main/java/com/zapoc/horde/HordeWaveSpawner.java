@@ -35,8 +35,6 @@ public class HordeWaveSpawner {
 
     private static final double ACTIVE_ZOMBIE_CHECK_RADIUS = 112.0D;
 
-    private static final String HORDE_GROUP_NUMBER_TAG = "ZapocHordeGroupNumber";
-
     private static final Random RANDOM = new Random();
 
     private static int waveTimer = FIRST_WAVE_DELAY_TICKS;
@@ -218,9 +216,6 @@ public class HordeWaveSpawner {
         ZombiePowerSystem.applyToZombie(zombie, day);
         ZombieAIController.applyAI(zombie, type);
 
-        zombie.setCustomName(null);
-        zombie.setCustomNameVisible(false);
-
         level.addFreshEntity(zombie);
 
         HordeGroupManager.addZombie(zombie);
@@ -314,14 +309,26 @@ public class HordeWaveSpawner {
 
     private static ZombieType getZombieTypeForDay(int day, int spawnIndex) {
 
+        if (day >= 80 && spawnIndex % 6 == 0)
+            return ZombieType.CRAWLER;
+
         if (day >= 80 && spawnIndex % 3 == 0)
             return ZombieType.BREAKER;
+
+        if (day >= 60 && spawnIndex % 8 == 0)
+            return ZombieType.CRAWLER;
 
         if (day >= 60 && spawnIndex % 4 == 0)
             return ZombieType.BREAKER;
 
+        if (day >= 40 && spawnIndex % 10 == 0)
+            return ZombieType.CRAWLER;
+
         if (day >= 40 && spawnIndex % 5 == 0)
             return ZombieType.BREAKER;
+
+        if (day >= 20 && spawnIndex % 14 == 0)
+            return ZombieType.CRAWLER;
 
         if (day >= 20 && spawnIndex % 7 == 0)
             return ZombieType.BREAKER;
@@ -347,10 +354,13 @@ public class HordeWaveSpawner {
             if (roll < 18)
                 return ZombieType.BREAKER;
 
-            if (roll < 38)
+            if (roll < 32)
                 return ZombieType.RUNNER;
 
-            if (roll < 50)
+            if (roll < 42)
+                return ZombieType.CRAWLER;
+
+            if (roll < 52)
                 return ZombieType.TANK;
 
             return ZombieType.NORMAL;
@@ -361,13 +371,16 @@ public class HordeWaveSpawner {
             if (roll < 24)
                 return ZombieType.BREAKER;
 
-            if (roll < 44)
+            if (roll < 40)
                 return ZombieType.RUNNER;
 
-            if (roll < 62)
+            if (roll < 55)
+                return ZombieType.CRAWLER;
+
+            if (roll < 70)
                 return ZombieType.TANK;
 
-            if (roll < 75)
+            if (roll < 82)
                 return ZombieType.HUNTER;
 
             return ZombieType.NORMAL;
@@ -378,13 +391,16 @@ public class HordeWaveSpawner {
             if (roll < 30)
                 return ZombieType.BREAKER;
 
-            if (roll < 50)
+            if (roll < 46)
                 return ZombieType.RUNNER;
 
-            if (roll < 70)
+            if (roll < 62)
+                return ZombieType.CRAWLER;
+
+            if (roll < 78)
                 return ZombieType.TANK;
 
-            if (roll < 85)
+            if (roll < 90)
                 return ZombieType.HUNTER;
 
             return ZombieType.NORMAL;
@@ -393,13 +409,16 @@ public class HordeWaveSpawner {
         if (roll < 38)
             return ZombieType.BREAKER;
 
-        if (roll < 58)
+        if (roll < 52)
             return ZombieType.RUNNER;
 
-        if (roll < 78)
+        if (roll < 68)
+            return ZombieType.CRAWLER;
+
+        if (roll < 82)
             return ZombieType.TANK;
 
-        if (roll < 92)
+        if (roll < 94)
             return ZombieType.HUNTER;
 
         return ZombieType.NORMAL;

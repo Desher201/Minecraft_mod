@@ -6,7 +6,8 @@ public enum ZombieType {
     RUNNER(0.8, 0.7, 2.0),
     TANK(3.0, 2.0, 0.6),
     HUNTER(1.5, 1.3, 1.2),
-    BREAKER(2.0, 1.5, 0.9);
+    BREAKER(2.0, 1.5, 0.9),
+    CRAWLER(0.7, 1.0, 0.85);
 
     // HP / DAMAGE / SPEED multipliers
     public final double hp;

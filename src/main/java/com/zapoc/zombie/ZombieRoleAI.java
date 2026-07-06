@@ -19,6 +19,8 @@ public class ZombieRoleAI {
 
             case BREAKER -> HordeBlockBreakAI.tickSingle(mob);
 
+            case CRAWLER -> CrawlerWallClimbAI.tick(mob);
+
             case RUNNER -> {
                 // Later: runner logic
             }

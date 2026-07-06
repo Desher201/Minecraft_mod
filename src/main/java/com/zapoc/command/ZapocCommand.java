@@ -46,6 +46,11 @@ public class ZapocCommand {
                                                         .executes(ctx -> spawn(ctx.getSource(), ZombieType.BREAKER))
                                         )
 
+                                        .then(
+                                                Commands.literal("crawler")
+                                                        .executes(ctx -> spawn(ctx.getSource(), ZombieType.CRAWLER))
+                                        )
+
                         )
 
         );

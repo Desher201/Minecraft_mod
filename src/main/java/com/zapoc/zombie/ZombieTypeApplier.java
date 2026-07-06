@@ -66,6 +66,23 @@ public class ZombieTypeApplier {
                             .setBaseValue(7D);
                 }
             }
+
+            case CRAWLER -> {
+
+                zombie.getAttribute(Attributes.MAX_HEALTH)
+                        .setBaseValue(14D);
+
+                zombie.setHealth(14F);
+
+                zombie.getAttribute(Attributes.ATTACK_DAMAGE)
+                        .setBaseValue(4D);
+
+                zombie.getAttribute(Attributes.MOVEMENT_SPEED)
+                        .setBaseValue(0.24D);
+
+                zombie.getAttribute(Attributes.FOLLOW_RANGE)
+                        .setBaseValue(40D);
+            }
         }
     }
 }

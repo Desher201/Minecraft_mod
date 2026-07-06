@@ -94,6 +94,8 @@ public class ZombiePowerSystem {
 
             case BREAKER -> day >= 20 ? 35.0D : 22.0D;
 
+            case CRAWLER -> 14.0D;
+
             case NORMAL -> 20.0D;
         };
     }
@@ -110,6 +112,8 @@ public class ZombiePowerSystem {
 
             case BREAKER -> day >= 20 ? 7.0D : 4.0D;
 
+            case CRAWLER -> 4.0D;
+
             case NORMAL -> 3.0D;
         };
     }
@@ -125,6 +129,8 @@ public class ZombiePowerSystem {
             case HUNTER -> getCappedSpeed(0.27D, day, 0.00025D, 0.33D);
 
             case BREAKER -> getCappedSpeed(0.22D, day, 0.00025D, 0.28D);
+
+            case CRAWLER -> getCappedSpeed(0.22D, day, 0.00020D, 0.27D);
 
             case NORMAL -> getCappedSpeed(0.23D, day, 0.00020D, 0.29D);
         };
