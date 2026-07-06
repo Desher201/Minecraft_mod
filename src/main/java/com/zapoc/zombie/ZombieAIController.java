@@ -18,6 +18,11 @@ public class ZombieAIController {
                 zombie.getAttribute(Attributes.MAX_HEALTH)
                         .setBaseValue(60);
                 zombie.setHealth(60f);
+
+                if (zombie.getAttribute(Attributes.KNOCKBACK_RESISTANCE) != null) {
+                    zombie.getAttribute(Attributes.KNOCKBACK_RESISTANCE)
+                            .setBaseValue(0.85D);
+                }
             }
 
             case HUNTER -> {

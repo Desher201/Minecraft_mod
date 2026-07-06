@@ -15,26 +15,23 @@ public class ZombieRoleAI {
 
         ZombieType type = ZombieTypeManager.getType(mob);
 
+        if (type != ZombieType.NORMAL && (mob.tickCount + mob.getId()) % 10 == 0) {
+            ZombiePositioningHelper.applySoftSeparation(mob);
+        }
+
         switch (type) {
 
             case BREAKER -> HordeBlockBreakAI.tickSingle(mob);
 
             case CRAWLER -> CrawlerWallClimbAI.tick(mob);
 
-            case RUNNER -> {
-                // Later: runner logic
-            }
+            case RUNNER -> RunnerRoleAI.tick(mob);
 
-            case TANK -> {
-                // Later: tank logic
-            }
+            case TANK -> TankRoleAI.tick(mob);
 
-            case HUNTER -> {
-                // Later: hunter logic
-            }
+            case HUNTER -> HunterRoleAI.tick(mob);
 
             case NORMAL -> {
-                // Normal zombie has no special role logic
             }
         }
     }

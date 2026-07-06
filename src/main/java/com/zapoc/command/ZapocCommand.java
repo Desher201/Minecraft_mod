@@ -6,7 +6,9 @@ import com.zapoc.bed.BedManager;
 import com.zapoc.horde.HordeGroup;
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.horde.HordeNightEventManager;
 import com.zapoc.horde.HordeWaveSpawner;
+import com.zapoc.spawn.ZapocSpawnPositionHelper;
 import com.zapoc.zombie.ZombieAIController;
 import com.zapoc.zombie.ZombiePowerSystem;
 import com.zapoc.zombie.ZombieType;
@@ -24,7 +26,12 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.level.Level;
 
+import java.util.Optional;
+import java.util.Random;
+
 public class ZapocCommand {
+
+    private static final Random RANDOM = new Random();
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 
@@ -109,6 +116,7 @@ public class ZapocCommand {
         send(source, "Horde info:");
         send(source, "Active: " + HordeManager.isHordeActive());
         send(source, "Forced: " + HordeManager.isForcedHorde());
+        send(source, "Event type: " + HordeNightEventManager.getDisplayName());
         send(source, "Horde number: " + HordeManager.getHordeNumber());
         send(source, "Group count: " + HordeGroupManager.getGroups().size());
         send(source, "Tracked active zombies: " + countTrackedHordeZombies());
@@ -173,20 +181,24 @@ public class ZapocCommand {
             int spawned = 0;
 
             for (int i = 0; i < count; i++) {
+                Optional<BlockPos> optionalSpawnPos = ZapocSpawnPositionHelper.findSurfaceSpawnPosition(
+                        level,
+                        player.blockPosition(),
+                        3,
+                        10 + count / 10,
+                        RANDOM
+                );
+
+                if (optionalSpawnPos.isEmpty()) {
+                    System.out.println("[ZApoc] Skipped debug zombie spawn: no safe surface position found.");
+                    continue;
+                }
+
+                BlockPos surface = optionalSpawnPos.get();
                 Zombie zombie = EntityType.ZOMBIE.create(level);
 
                 if (zombie == null)
                     continue;
-
-                double angle = (Math.PI * 2.0D * i) / Math.max(1, count);
-                double distance = 3.0D + (i / 12) * 1.5D;
-                double x = player.getX() + Math.cos(angle) * distance;
-                double z = player.getZ() + Math.sin(angle) * distance;
-                BlockPos spawnPos = new BlockPos(x, player.getY(), z);
-                BlockPos surface = level.getHeightmapPos(
-                        net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                        spawnPos
-                );
 
                 zombie.moveTo(
                         surface.getX() + 0.5D,

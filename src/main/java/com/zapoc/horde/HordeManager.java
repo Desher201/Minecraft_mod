@@ -53,11 +53,13 @@ public class HordeManager {
         hordeActive = true;
         hordeNumber++;
 
+        HordeNightEventManager.startForDay(currentDay);
         HordeGroupManager.createGroups();
         HordeWaveSpawner.start();
 
         System.out.println("===== HORDE STARTED =====");
         System.out.println("Horde #" + hordeNumber);
+        System.out.println("Night type: " + HordeNightEventManager.getDisplayName());
         System.out.println("Groups created: " + HordeGroupManager.getGroups().size());
     }
 
@@ -70,6 +72,7 @@ public class HordeManager {
 
         HordeWaveSpawner.stop();
         HordeGroupManager.clear();
+        HordeNightEventManager.stop();
 
         System.out.println("===== HORDE ENDED =====");
     }

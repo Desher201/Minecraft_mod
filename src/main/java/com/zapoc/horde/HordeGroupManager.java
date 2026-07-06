@@ -106,6 +106,21 @@ public class HordeGroupManager {
         return false;
     }
 
+    public static boolean isLeader(Mob mob) {
+
+        if (mob == null)
+            return false;
+
+        for (HordeGroup group : GROUPS) {
+
+            if (group.getLeader() == mob) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static void alertGroup(Mob caller, LivingEntity target) {
 
         if (caller == null || target == null)

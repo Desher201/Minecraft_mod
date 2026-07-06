@@ -39,6 +39,11 @@ public class ZombieTypeApplier {
 
                 zombie.getAttribute(Attributes.MOVEMENT_SPEED)
                         .setBaseValue(0.18D);
+
+                if (zombie.getAttribute(Attributes.KNOCKBACK_RESISTANCE) != null) {
+                    zombie.getAttribute(Attributes.KNOCKBACK_RESISTANCE)
+                            .setBaseValue(0.85D);
+                }
             }
 
             case HUNTER -> {
