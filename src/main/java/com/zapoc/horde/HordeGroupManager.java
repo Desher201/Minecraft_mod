@@ -191,5 +191,7 @@ public class HordeGroupManager {
 
         HordeBedAttackAI.reset();
         HordeBlockBreakAI.reset();
+        HordeLeaderAI.reset();
+        HordeFollowerAI.reset();
     }
 }

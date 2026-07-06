@@ -8,11 +8,15 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -161,8 +165,9 @@ public class HordeBedAttackAI {
         }
 
         BlockPos mobPos = mob.blockPosition();
+        Vec3 mobReachPos = mob.position().add(0.0D, mob.getEyeHeight() * 0.75D, 0.0D);
 
-        if (canReachBedPart(level, mobPos, bedPos))
+        if (canReachBedPart(level, mobPos, mobReachPos, bedPos))
             return true;
 
         BlockPos otherPartPos = getOtherBedPartPos(bedPos, bedState);
@@ -171,10 +176,10 @@ public class HordeBedAttackAI {
         if (!(otherState.getBlock() instanceof BedBlock))
             return false;
 
-        return canReachBedPart(level, mobPos, otherPartPos);
+        return canReachBedPart(level, mobPos, mobReachPos, otherPartPos);
     }
 
-    private static boolean canReachBedPart(ServerLevel level, BlockPos mobPos, BlockPos bedPartPos) {
+    private static boolean canReachBedPart(ServerLevel level, BlockPos mobPos, Vec3 mobReachPos, BlockPos bedPartPos) {
 
         int dx = Math.abs(mobPos.getX() - bedPartPos.getX());
         int dy = Math.abs(mobPos.getY() - bedPartPos.getY());
@@ -183,34 +188,28 @@ public class HordeBedAttackAI {
         if (dy > 2)
             return false;
 
-        if (dx <= 1 && dz <= 1)
-            return true;
-
         if (dx > 2 || dz > 2)
             return false;
 
-        return !hasSolidBlockBetween(level, mobPos, bedPartPos);
+        return hasLineOfSightToBedPart(level, mobReachPos, bedPartPos);
     }
 
-    private static boolean hasSolidBlockBetween(ServerLevel level, BlockPos from, BlockPos to) {
+    private static boolean hasLineOfSightToBedPart(ServerLevel level, Vec3 from, BlockPos bedPartPos) {
 
-        int dx = Integer.compare(to.getX() - from.getX(), 0);
-        int dz = Integer.compare(to.getZ() - from.getZ(), 0);
+        Vec3 to = Vec3.atCenterOf(bedPartPos);
 
-        BlockPos checkPos = from.offset(dx, 0, dz);
+        BlockHitResult hit = level.clip(new ClipContext(
+                from,
+                to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                null
+        ));
 
-        while (!checkPos.equals(to)) {
+        if (hit.getType() == HitResult.Type.MISS)
+            return true;
 
-            BlockState state = level.getBlockState(checkPos);
-
-            if (!state.isAir() && !state.getCollisionShape(level, checkPos).isEmpty()) {
-                return true;
-            }
-
-            checkPos = checkPos.offset(dx, 0, dz);
-        }
-
-        return false;
+        return hit.getBlockPos().equals(bedPartPos);
     }
 
     private static void clearTargets(HordeGroup group) {

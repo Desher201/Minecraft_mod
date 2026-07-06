@@ -20,8 +20,6 @@ import java.util.Set;
 @Mod.EventBusSubscriber
 public class ZombieAIEvents {
 
-    private static final String HORDE_GROUP_NUMBER_TAG = "ZapocHordeGroupNumber";
-
     private static final Set<ResourceLocation> TARGET_TYPES = new HashSet<>();
 
     static {
@@ -74,8 +72,6 @@ public class ZombieAIEvents {
 
         if (!isTargetMob(mob))
             return;
-
-        mob.goalSelector.addGoal(2, new GoToBedGoal(mob));
 
         tryAddToHordeGroup(mob);
     }
@@ -141,14 +137,10 @@ public class ZombieAIEvents {
         if (!HordeManager.isHordeActive())
             return;
 
-        int currentHorde = HordeManager.getHordeNumber();
-        int mobHorde = mob.getPersistentData().getInt(HORDE_GROUP_NUMBER_TAG);
-
-        if (mobHorde == currentHorde)
+        if (HordeGroupManager.isTracked(mob))
             return;
 
         HordeGroupManager.addZombie(mob);
-        mob.getPersistentData().putInt(HORDE_GROUP_NUMBER_TAG, currentHorde);
     }
 
     private static void protectFromSun(Mob mob) {

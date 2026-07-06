@@ -2,9 +2,13 @@ package com.zapoc.horde;
 
 import com.zapoc.bed.BedManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class HordeFollowerAI {
 
@@ -16,9 +20,16 @@ public class HordeFollowerAI {
 
     private static final double BED_PRIORITY_RADIUS = 5.0;
 
+    private static final int FOLLOW_PATH_RECALC_INTERVAL = 30;
+
+    private static final Map<Integer, Long> NEXT_FOLLOW_PATH_RECALC_TICK = new HashMap<>();
+
     public static void tick(HordeGroup group) {
 
         if (group == null)
+            return;
+
+        if (!HordeManager.isHordeActive())
             return;
 
         Mob leader = group.getLeader();
@@ -27,6 +38,9 @@ public class HordeFollowerAI {
             return;
 
         if (!leader.isAlive())
+            return;
+
+        if (!(leader.level instanceof ServerLevel level))
             return;
 
         boolean bedPriority = false;
@@ -58,14 +72,19 @@ public class HordeFollowerAI {
             if (!zombie.isAlive())
                 continue;
 
-            double distanceToLeader = zombie.distanceTo(leader);
+            if (zombie.isRemoved())
+                continue;
+
+            double distanceToLeaderSqr = zombie.distanceToSqr(leader);
 
             if (bedPriority) {
 
                 zombie.setTarget(null);
 
-                if (distanceToLeader > FOLLOW_DISTANCE) {
-                    zombie.getNavigation().moveTo(leader, FOLLOW_SPEED);
+                if (distanceToLeaderSqr > FOLLOW_DISTANCE * FOLLOW_DISTANCE) {
+                    moveToTarget(level, zombie, leader, FOLLOW_SPEED);
+                } else {
+                    zombie.getNavigation().stop();
                 }
 
                 continue;
@@ -75,10 +94,10 @@ public class HordeFollowerAI {
 
                 zombie.setTarget(leaderTarget);
 
-                if (distanceToLeader <= MAX_DISTANCE_FROM_LEADER) {
-                    zombie.getNavigation().moveTo(leaderTarget, ATTACK_SPEED);
+                if (distanceToLeaderSqr <= MAX_DISTANCE_FROM_LEADER * MAX_DISTANCE_FROM_LEADER) {
+                    moveToTarget(level, zombie, leaderTarget, ATTACK_SPEED);
                 } else {
-                    zombie.getNavigation().moveTo(leader, FOLLOW_SPEED);
+                    moveToTarget(level, zombie, leader, FOLLOW_SPEED);
                 }
 
                 continue;
@@ -86,9 +105,32 @@ public class HordeFollowerAI {
 
             zombie.setTarget(null);
 
-            if (distanceToLeader > FOLLOW_DISTANCE) {
-                zombie.getNavigation().moveTo(leader, FOLLOW_SPEED);
+            if (distanceToLeaderSqr > FOLLOW_DISTANCE * FOLLOW_DISTANCE) {
+                moveToTarget(level, zombie, leader, FOLLOW_SPEED);
+            } else {
+                zombie.getNavigation().stop();
             }
         }
+    }
+
+    private static void moveToTarget(ServerLevel level, Mob mob, LivingEntity target, double speed) {
+
+        long gameTime = level.getGameTime();
+        int mobId = mob.getId();
+        long nextTick = NEXT_FOLLOW_PATH_RECALC_TICK.getOrDefault(mobId, 0L);
+
+        if (gameTime < nextTick)
+            return;
+
+        NEXT_FOLLOW_PATH_RECALC_TICK.put(
+                mobId,
+                gameTime + FOLLOW_PATH_RECALC_INTERVAL + Math.abs(mobId % 10)
+        );
+
+        mob.getNavigation().moveTo(target, speed);
+    }
+
+    public static void reset() {
+        NEXT_FOLLOW_PATH_RECALC_TICK.clear();
     }
 }

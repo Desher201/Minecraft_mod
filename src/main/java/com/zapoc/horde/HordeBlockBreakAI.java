@@ -28,12 +28,15 @@ public class HordeBlockBreakAI {
     private static final double MAX_PATH_MULTIPLIER = 1.8D;
     private static final int MAX_PATH_EXTRA_NODES = 12;
     private static final int STUCK_TICKS_REQUIRED = 40;
+    private static final int PATH_CHECK_INTERVAL_TICKS = 20;
 
     private static final Map<Long, Double> BREAK_PROGRESS = new HashMap<>();
     private static final Map<String, Long> LAST_HIT_TICK = new HashMap<>();
 
     private static final Map<Integer, BlockPos> LAST_MOB_POS = new HashMap<>();
     private static final Map<Integer, Integer> STUCK_TICKS = new HashMap<>();
+
+    private static final Map<Integer, PathCheckResult> PATH_CHECK_CACHE = new HashMap<>();
 
     public static boolean tick(HordeGroup group) {
 
@@ -152,7 +155,33 @@ public class HordeBlockBreakAI {
         if (isMobStuck(mob))
             return true;
 
-        return !hasGoodEnoughPath(mob, targetPos);
+        return !hasGoodEnoughPathCached(level, mob, targetPos);
+    }
+
+    private static boolean hasGoodEnoughPathCached(ServerLevel level, Mob mob, BlockPos targetPos) {
+
+        int mobId = mob.getId();
+        long gameTime = level.getGameTime();
+
+        PathCheckResult cached = PATH_CHECK_CACHE.get(mobId);
+
+        if (cached != null) {
+
+            if (gameTime < cached.nextCheckTick && isSameTarget(cached.targetPos, targetPos)) {
+                return cached.hasGoodPath;
+            }
+        }
+
+        boolean hasGoodPath = hasGoodEnoughPath(mob, targetPos);
+
+        long nextCheckTick = gameTime + PATH_CHECK_INTERVAL_TICKS + Math.abs(mobId % 7);
+
+        PATH_CHECK_CACHE.put(
+                mobId,
+                new PathCheckResult(targetPos.immutable(), nextCheckTick, hasGoodPath)
+        );
+
+        return hasGoodPath;
     }
 
     private static boolean hasGoodEnoughPath(Mob mob, BlockPos targetPos) {
@@ -172,6 +201,18 @@ public class HordeBlockBreakAI {
             maxAllowedNodes = 8;
 
         return path.getNodeCount() <= maxAllowedNodes;
+    }
+
+    private static boolean isSameTarget(BlockPos cachedTarget, BlockPos currentTarget) {
+
+        if (cachedTarget == null || currentTarget == null)
+            return false;
+
+        int dx = Math.abs(cachedTarget.getX() - currentTarget.getX());
+        int dy = Math.abs(cachedTarget.getY() - currentTarget.getY());
+        int dz = Math.abs(cachedTarget.getZ() - currentTarget.getZ());
+
+        return dx <= 2 && dy <= 2 && dz <= 2;
     }
 
     private static int getHorizontalDistance(BlockPos from, BlockPos to) {
@@ -361,5 +402,19 @@ public class HordeBlockBreakAI {
         LAST_HIT_TICK.clear();
         LAST_MOB_POS.clear();
         STUCK_TICKS.clear();
+        PATH_CHECK_CACHE.clear();
+    }
+
+    private static class PathCheckResult {
+
+        private final BlockPos targetPos;
+        private final long nextCheckTick;
+        private final boolean hasGoodPath;
+
+        private PathCheckResult(BlockPos targetPos, long nextCheckTick, boolean hasGoodPath) {
+            this.targetPos = targetPos;
+            this.nextCheckTick = nextCheckTick;
+            this.hasGoodPath = hasGoodPath;
+        }
     }
 }

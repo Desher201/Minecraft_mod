@@ -20,20 +20,20 @@ import java.util.Random;
 
 public class HordeWaveSpawner {
 
-    private static final int WAVE_INTERVAL_TICKS = 20 * 45;
+    private static final int WAVE_INTERVAL_TICKS = 20 * 40;
     private static final int FIRST_WAVE_DELAY_TICKS = 20 * 5;
 
-    private static final int SPAWN_BATCH_INTERVAL_TICKS = 10;
-    private static final int SPAWNS_PER_BATCH = 2;
+    private static final int SPAWN_BATCH_INTERVAL_TICKS = 8;
+    private static final int SPAWNS_PER_BATCH = 3;
 
     private static final int MIN_SPAWN_DISTANCE = 28;
-    private static final int MAX_SPAWN_DISTANCE = 42;
+    private static final int MAX_SPAWN_DISTANCE = 46;
 
-    private static final int MAX_WAVES = 8;
-    private static final int MAX_ZOMBIES_PER_WAVE = 60;
-    private static final int MAX_ACTIVE_HORDE_ZOMBIES = 85;
+    private static final int MAX_WAVES = 10;
+    private static final int MAX_ZOMBIES_PER_WAVE = 120;
+    private static final int MAX_ACTIVE_HORDE_ZOMBIES = 180;
 
-    private static final double ACTIVE_ZOMBIE_CHECK_RADIUS = 96.0D;
+    private static final double ACTIVE_ZOMBIE_CHECK_RADIUS = 112.0D;
 
     private static final String HORDE_GROUP_NUMBER_TAG = "ZapocHordeGroupNumber";
 
@@ -167,14 +167,15 @@ public class HordeWaveSpawner {
 
         for (int i = 0; i < amount; i++) {
 
-            BlockPos spawnPos = findSpawnPos(level, bedPos, pendingSpawnIndex);
-
+            int spawnIndex = pendingSpawnIndex;
             pendingSpawnIndex++;
+
+            BlockPos spawnPos = findSpawnPos(level, bedPos, spawnIndex);
 
             if (spawnPos == null)
                 continue;
 
-            ZombieType type = getZombieTypeForDay(pendingSpawnDay);
+            ZombieType type = getZombieTypeForDay(pendingSpawnDay, spawnIndex);
             spawnZombie(level, spawnPos, type, pendingSpawnDay);
 
             pendingSpawnCount--;
@@ -209,13 +210,16 @@ public class HordeWaveSpawner {
         );
 
         zombie.setBaby(false);
+        zombie.setCustomName(null);
+        zombie.setCustomNameVisible(false);
 
         ZombieTypeManager.setType(zombie, type);
         ZombieTypeApplier.apply(zombie, type, day);
         ZombiePowerSystem.applyToZombie(zombie, day);
         ZombieAIController.applyAI(zombie, type);
 
-        zombie.getPersistentData().putInt(HORDE_GROUP_NUMBER_TAG, HordeManager.getHordeNumber());
+        zombie.setCustomName(null);
+        zombie.setCustomNameVisible(false);
 
         level.addFreshEntity(zombie);
 
@@ -228,7 +232,7 @@ public class HordeWaveSpawner {
 
             int directionIndex = (index + attempt) % 4;
             int distance = MIN_SPAWN_DISTANCE + RANDOM.nextInt(MAX_SPAWN_DISTANCE - MIN_SPAWN_DISTANCE + 1);
-            int sideOffset = RANDOM.nextInt(17) - 8;
+            int sideOffset = RANDOM.nextInt(21) - 10;
 
             int x = bedPos.getX();
             int z = bedPos.getZ();
@@ -290,7 +294,7 @@ public class HordeWaveSpawner {
 
         int day = HordeManager.getCurrentDay();
 
-        int waves = 3 + day / 20;
+        int waves = 4 + day / 15;
 
         if (waves > MAX_WAVES)
             return MAX_WAVES;
@@ -300,7 +304,7 @@ public class HordeWaveSpawner {
 
     private static int getZombiesForWave(int day, int wave) {
 
-        int count = 14 + day / 4 + wave * 5;
+        int count = 22 + day / 3 + wave * 8;
 
         if (count > MAX_ZOMBIES_PER_WAVE)
             return MAX_ZOMBIES_PER_WAVE;
@@ -308,16 +312,31 @@ public class HordeWaveSpawner {
         return count;
     }
 
-    private static ZombieType getZombieTypeForDay(int day) {
+    private static ZombieType getZombieTypeForDay(int day, int spawnIndex) {
+
+        if (day >= 80 && spawnIndex % 3 == 0)
+            return ZombieType.BREAKER;
+
+        if (day >= 60 && spawnIndex % 4 == 0)
+            return ZombieType.BREAKER;
+
+        if (day >= 40 && spawnIndex % 5 == 0)
+            return ZombieType.BREAKER;
+
+        if (day >= 20 && spawnIndex % 7 == 0)
+            return ZombieType.BREAKER;
+
+        if (day < 20 && spawnIndex % 10 == 0)
+            return ZombieType.BREAKER;
 
         int roll = RANDOM.nextInt(100);
 
         if (day < 20) {
 
-            if (roll < 8)
+            if (roll < 12)
                 return ZombieType.BREAKER;
 
-            if (roll < 20)
+            if (roll < 25)
                 return ZombieType.RUNNER;
 
             return ZombieType.NORMAL;
@@ -325,13 +344,13 @@ public class HordeWaveSpawner {
 
         if (day < 40) {
 
-            if (roll < 12)
+            if (roll < 18)
                 return ZombieType.BREAKER;
 
-            if (roll < 32)
+            if (roll < 38)
                 return ZombieType.RUNNER;
 
-            if (roll < 42)
+            if (roll < 50)
                 return ZombieType.TANK;
 
             return ZombieType.NORMAL;
@@ -339,31 +358,48 @@ public class HordeWaveSpawner {
 
         if (day < 60) {
 
-            if (roll < 16)
+            if (roll < 24)
                 return ZombieType.BREAKER;
 
-            if (roll < 36)
+            if (roll < 44)
                 return ZombieType.RUNNER;
 
-            if (roll < 52)
+            if (roll < 62)
                 return ZombieType.TANK;
 
-            if (roll < 64)
+            if (roll < 75)
                 return ZombieType.HUNTER;
 
             return ZombieType.NORMAL;
         }
 
-        if (roll < 20)
+        if (day < 80) {
+
+            if (roll < 30)
+                return ZombieType.BREAKER;
+
+            if (roll < 50)
+                return ZombieType.RUNNER;
+
+            if (roll < 70)
+                return ZombieType.TANK;
+
+            if (roll < 85)
+                return ZombieType.HUNTER;
+
+            return ZombieType.NORMAL;
+        }
+
+        if (roll < 38)
             return ZombieType.BREAKER;
 
-        if (roll < 40)
+        if (roll < 58)
             return ZombieType.RUNNER;
 
-        if (roll < 60)
+        if (roll < 78)
             return ZombieType.TANK;
 
-        if (roll < 78)
+        if (roll < 92)
             return ZombieType.HUNTER;
 
         return ZombieType.NORMAL;

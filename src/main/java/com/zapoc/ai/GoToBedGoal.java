@@ -1,129 +1,160 @@
 package com.zapoc.ai;
 
 import com.zapoc.bed.BedManager;
-import com.zapoc.horde.HordeBlockBreakAI;
-import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
-import com.zapoc.zombie.ZombieType;
-import com.zapoc.zombie.ZombieTypeManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
 
 public class GoToBedGoal extends Goal {
 
-    private static final double SPEED = 1.0;
-    private static final double ARRIVE_DIST_SQR = 4.0;
+    private static final double MOVE_SPEED = 1.0D;
+    private static final double STOP_DISTANCE_SQR = 4.0D;
+    private static final int PATH_RECALC_INTERVAL = 40;
 
     private final Mob mob;
 
-    private BlockPos targetBed;
-    private int repathCooldown = 0;
+    private BlockPos bedPos;
+    private int pathRecalcTimer = 0;
 
     public GoToBedGoal(Mob mob) {
 
         this.mob = mob;
-        this.setFlags(EnumSet.of(Flag.MOVE));
+        this.setFlags(EnumSet.of(Goal.Flag.MOVE));
     }
 
     @Override
     public boolean canUse() {
 
-        Level level = mob.level;
-
-        if (level.isClientSide())
+        if (mob == null)
             return false;
 
-        if (!HordeManager.isHordeActive())
+        if (!mob.isAlive())
+            return false;
+
+        if (mob.level.isClientSide())
+            return false;
+
+        if (HordeManager.isHordeActive())
+            return false;
+
+        LivingEntity target = mob.getTarget();
+
+        if (target != null && target.isAlive())
             return false;
 
         if (!BedManager.hasBed())
             return false;
 
-        if (HordeGroupManager.isTracked(mob))
+        if (!(mob.level instanceof ServerLevel level))
             return false;
 
-        targetBed = BedManager.getBedPos();
+        if (!level.dimension().equals(BedManager.getDimension()))
+            return false;
 
-        return targetBed != null;
+        BlockPos pos = BedManager.getBedPos();
+
+        if (pos == null)
+            return false;
+
+        bedPos = pos;
+
+        return true;
     }
 
     @Override
     public boolean canContinueToUse() {
 
-        if (!HordeManager.isHordeActive())
+        if (mob == null)
+            return false;
+
+        if (!mob.isAlive())
+            return false;
+
+        if (mob.level.isClientSide())
+            return false;
+
+        if (HordeManager.isHordeActive())
+            return false;
+
+        LivingEntity target = mob.getTarget();
+
+        if (target != null && target.isAlive())
             return false;
 
         if (!BedManager.hasBed())
             return false;
 
-        if (HordeGroupManager.isTracked(mob))
+        if (!(mob.level instanceof ServerLevel level))
             return false;
 
-        if (targetBed == null)
+        if (!level.dimension().equals(BedManager.getDimension()))
             return false;
 
-        return mob.distanceToSqr(Vec3.atCenterOf(targetBed)) > ARRIVE_DIST_SQR;
+        BlockPos pos = BedManager.getBedPos();
+
+        if (pos == null)
+            return false;
+
+        bedPos = pos;
+
+        return mob.distanceToSqr(
+                bedPos.getX() + 0.5D,
+                bedPos.getY(),
+                bedPos.getZ() + 0.5D
+        ) > STOP_DISTANCE_SQR;
     }
 
     @Override
     public void start() {
 
+        pathRecalcTimer = 0;
         moveToBed();
-    }
-
-    @Override
-    public void tick() {
-
-        if (targetBed == null)
-            return;
-
-        if (ZombieTypeManager.getType(mob) == ZombieType.BREAKER) {
-
-            BlockPos breakTarget = targetBed;
-
-            LivingEntity currentTarget = mob.getTarget();
-
-            if (currentTarget != null && currentTarget.isAlive()) {
-                breakTarget = currentTarget.blockPosition();
-            }
-
-            if (HordeBlockBreakAI.tickSingle(mob, breakTarget)) {
-                return;
-            }
-        }
-
-        repathCooldown--;
-
-        if (repathCooldown <= 0) {
-
-            repathCooldown = 20;
-            moveToBed();
-        }
     }
 
     @Override
     public void stop() {
 
+        bedPos = null;
+        pathRecalcTimer = 0;
         mob.getNavigation().stop();
-        targetBed = null;
+    }
+
+    @Override
+    public void tick() {
+
+        if (bedPos == null)
+            return;
+
+        if (HordeManager.isHordeActive()) {
+            mob.getNavigation().stop();
+            return;
+        }
+
+        pathRecalcTimer--;
+
+        if (pathRecalcTimer > 0)
+            return;
+
+        pathRecalcTimer = PATH_RECALC_INTERVAL;
+
+        moveToBed();
     }
 
     private void moveToBed() {
 
-        if (targetBed == null)
+        if (bedPos == null)
             return;
 
         mob.getNavigation().moveTo(
-                targetBed.getX() + 0.5,
-                targetBed.getY(),
-                targetBed.getZ() + 0.5,
-                SPEED
+                bedPos.getX() + 0.5D,
+                bedPos.getY(),
+                bedPos.getZ() + 0.5D,
+                MOVE_SPEED
         );
     }
 }
