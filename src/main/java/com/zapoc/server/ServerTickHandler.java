@@ -8,6 +8,8 @@ import com.zapoc.horde.HordeManager;
 import com.zapoc.horde.HordeWaveSpawner;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
+import com.zapoc.roaming.RoamingGroupManager;
+import com.zapoc.roaming.RoamingGroupSpawner;
 import com.zapoc.zombie.ZombiePowerSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -108,6 +110,8 @@ public class ServerTickHandler {
             lastZombieDay = day;
         }
 
+        RoamingGroupSpawner.tick(server);
+
         NetworkHandler.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
                 new HudSyncPacket(day, daysLeft, hordeNight, BedManager.isHardcore())
@@ -121,5 +125,7 @@ public class ServerTickHandler {
 
         HordeWaveSpawner.stop();
         HordeGroupManager.clear();
+        RoamingGroupSpawner.reset();
+        RoamingGroupManager.clear();
     }
 }

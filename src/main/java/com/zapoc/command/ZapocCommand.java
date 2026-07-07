@@ -3,11 +3,15 @@ package com.zapoc.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.zapoc.bed.BedManager;
+import com.zapoc.config.ZapocConfig;
 import com.zapoc.horde.HordeGroup;
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
 import com.zapoc.horde.HordeNightEventManager;
 import com.zapoc.horde.HordeWaveSpawner;
+import com.zapoc.roaming.RoamingGroupManager;
+import com.zapoc.roaming.RoamingGroupSpawner;
+import com.zapoc.roaming.RoamingGroupType;
 import com.zapoc.spawn.ZapocSpawnPositionHelper;
 import com.zapoc.zombie.ZombieAIController;
 import com.zapoc.zombie.ZombiePowerSystem;
@@ -61,6 +65,17 @@ public class ZapocCommand {
                         .then(Commands.literal("bed")
                                 .then(Commands.literal("info")
                                         .executes(ctx -> bedInfo(ctx.getSource()))))
+                        .then(Commands.literal("roaming")
+                                .then(Commands.literal("info")
+                                        .executes(ctx -> roamingInfo(ctx.getSource())))
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> roamingClear(ctx.getSource())))
+                                .then(Commands.literal("spawn")
+                                        .then(roamingType("small_pack", RoamingGroupType.SMALL_PACK))
+                                        .then(roamingType("runner_pack", RoamingGroupType.RUNNER_PACK))
+                                        .then(roamingType("crawler_pack", RoamingGroupType.CRAWLER_PACK))
+                                        .then(roamingType("heavy_patrol", RoamingGroupType.HEAVY_PATROL))
+                                        .then(roamingType("horde_remnant", RoamingGroupType.HORDE_REMNANT))))
                         .then(Commands.literal("spawn")
                                 .then(spawnType("normal", ZombieType.NORMAL))
                                 .then(spawnType("runner", ZombieType.RUNNER))
@@ -81,6 +96,12 @@ public class ZapocCommand {
                                 type,
                                 IntegerArgumentType.getInteger(ctx, "count")
                         )));
+    }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> roamingType(String name, RoamingGroupType type) {
+
+        return Commands.literal(name)
+                .executes(ctx -> roamingSpawn(ctx.getSource(), type));
     }
 
     private static int info(CommandSourceStack source) {
@@ -170,6 +191,44 @@ public class ZapocCommand {
         send(source, "Hardcore active: " + BedManager.isHardcore());
 
         return 1;
+    }
+
+    private static int roamingInfo(CommandSourceStack source) {
+
+        send(source, "Roaming groups:");
+        send(source, "Enabled: " + ZapocConfig.ROAMING_GROUPS_ENABLED.get());
+        send(source, "Active groups: " + RoamingGroupManager.getGroupCount());
+        send(source, "Active zombies: " + RoamingGroupManager.getActiveCount());
+        send(source, "Shared targets: " + RoamingGroupManager.getSharedTargetCount());
+        send(source, "Max active zombies: " + ZapocConfig.ROAMING_GROUP_MAX_ACTIVE_ZOMBIES.get());
+        send(source, "Spawn interval ticks: " + ZapocConfig.ROAMING_GROUP_SPAWN_INTERVAL_TICKS.get());
+        send(source, "Spawn during horde: " + ZapocConfig.ROAMING_GROUPS_SPAWN_DURING_HORDE.get());
+
+        return 1;
+    }
+
+    private static int roamingClear(CommandSourceStack source) {
+
+        int removed = RoamingGroupManager.clear();
+        send(source, "Cleared roaming zombies: " + removed);
+
+        return 1;
+    }
+
+    private static int roamingSpawn(CommandSourceStack source, RoamingGroupType type) {
+
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            int day = HordeManager.getCurrentDay();
+            int spawned = RoamingGroupSpawner.spawnGroupNearPlayer(player.getLevel(), player, type, day);
+
+            send(source, "Spawned roaming group " + type.name().toLowerCase() + " with " + spawned + " zombie(s).");
+
+            return spawned;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     private static int spawn(CommandSourceStack source, ZombieType type, int count) {

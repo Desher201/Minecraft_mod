@@ -2,14 +2,15 @@ package com.zapoc.ai;
 
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.roaming.RoamingGroupManager;
 import com.zapoc.zombie.ZombieRoleAI;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -88,15 +89,13 @@ public class ZombieAIEvents {
         if (!isTargetMob(mob))
             return;
 
-        protectFromSun(mob);
-
         ZombieRoleAI.tick(mob);
 
         tryAddToHordeGroup(mob);
     }
 
     @SubscribeEvent
-    public static void onLivingAttack(LivingAttackEvent event) {
+    public static void onLivingHurt(LivingHurtEvent event) {
 
         if (event.getEntityLiving().level.isClientSide())
             return;
@@ -107,14 +106,10 @@ public class ZombieAIEvents {
         if (!isTargetMob(mob))
             return;
 
-        if (!event.getSource().isFire())
+        if (!(event.getSource().getEntity() instanceof Player player))
             return;
 
-        if (!isInSun(mob))
-            return;
-
-        event.setCanceled(true);
-        mob.clearFire();
+        RoamingGroupManager.alertGroup(mob, player);
     }
 
     @SubscribeEvent
@@ -137,34 +132,13 @@ public class ZombieAIEvents {
         if (!HordeManager.isHordeActive())
             return;
 
+        if (RoamingGroupManager.isRoamingMob(mob))
+            return;
+
         if (HordeGroupManager.isTracked(mob))
             return;
 
         HordeGroupManager.addZombie(mob);
-    }
-
-    private static void protectFromSun(Mob mob) {
-
-        if (!isInSun(mob))
-            return;
-
-        mob.clearFire();
-    }
-
-    private static boolean isInSun(Mob mob) {
-
-        Level level = mob.level;
-
-        if (!level.isDay())
-            return false;
-
-        if (level.isRaining())
-            return false;
-
-        if (!level.canSeeSky(mob.blockPosition()))
-            return false;
-
-        return true;
     }
 
     private static boolean isTargetMob(Mob mob) {

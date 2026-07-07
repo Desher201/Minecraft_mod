@@ -46,6 +46,36 @@ public class ZapocSpawnPositionHelper {
         return Optional.empty();
     }
 
+    public static Optional<BlockPos> findSurfaceSpawnPositionNear(
+            ServerLevel level,
+            BlockPos center,
+            int radius,
+            Random random
+    ) {
+
+        int safeRadius = Math.max(0, radius);
+
+        for (int attempt = 0; attempt < DEFAULT_ATTEMPTS; attempt++) {
+
+            int x = center.getX();
+            int z = center.getZ();
+
+            if (safeRadius > 0) {
+                x += random.nextInt(safeRadius * 2 + 1) - safeRadius;
+                z += random.nextInt(safeRadius * 2 + 1) - safeRadius;
+            }
+
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos pos = new BlockPos(x, y, z);
+
+            if (isValidSpawnPosition(level, pos)) {
+                return Optional.of(pos);
+            }
+        }
+
+        return Optional.empty();
+    }
+
     public static boolean isValidSpawnPosition(ServerLevel level, BlockPos pos) {
 
         BlockState below = level.getBlockState(pos.below());

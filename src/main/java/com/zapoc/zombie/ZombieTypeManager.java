@@ -1,6 +1,7 @@
 package com.zapoc.zombie;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 
 public class ZombieTypeManager {
@@ -35,5 +36,13 @@ public class ZombieTypeManager {
 
             return ZombieType.NORMAL;
         }
+    }
+
+    public static boolean isManaged(LivingEntity entity) {
+
+        if (entity == null)
+            return false;
+
+        return entity.getPersistentData().contains(TAG);
     }
 }
