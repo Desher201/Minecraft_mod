@@ -1,6 +1,7 @@
 package com.zapoc.bed;
 
 import com.zapoc.horde.HordeManager;
+import com.zapoc.message.ApocalypseMessageManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
@@ -90,6 +91,7 @@ public class BedBreakProtectionEvents {
         BedManager.removeBed();
         BedManager.setHardcore(true);
         BedPersistenceManager.saveBed(level);
+        ApocalypseMessageManager.sendBedDestroyedMessage(level);
 
         System.out.println("[ZApoc] Global bed was removed without drop.");
     }

@@ -7,4 +7,10 @@ public class ClientHudData {
 
     public static boolean hordeNight = false;
     public static boolean hardcore = false;
+    public static boolean hasBed = false;
+    public static String hordeNightType = "Mixed";
+    public static int currentWave = 0;
+    public static int maxWaves = 0;
+    public static boolean forcedHorde = false;
+    public static int activeRoamingZombies = 0;
 }

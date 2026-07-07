@@ -3,6 +3,7 @@ package com.zapoc.horde;
 import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.bed.BedPersistenceManager;
+import com.zapoc.message.ApocalypseMessageManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -85,6 +86,7 @@ public class HordeBedAttackAI {
             BedManager.removeBed();
             BedManager.setHardcore(true);
             BedPersistenceManager.saveBed(level);
+            ApocalypseMessageManager.sendBedDestroyedMessage(level);
 
             System.out.println("[ZApoc] Horde destroyed the global bed.");
 

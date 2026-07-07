@@ -2,6 +2,7 @@ package com.zapoc.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.config.ZapocConfig;
 import com.zapoc.horde.HordeGroup;
@@ -9,6 +10,7 @@ import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
 import com.zapoc.horde.HordeNightEventManager;
 import com.zapoc.horde.HordeWaveSpawner;
+import com.zapoc.message.ApocalypseMessageManager;
 import com.zapoc.roaming.RoamingGroupManager;
 import com.zapoc.roaming.RoamingGroupSpawner;
 import com.zapoc.roaming.RoamingGroupType;
@@ -52,7 +54,9 @@ public class ZapocCommand {
                                 .then(Commands.literal("info")
                                         .executes(ctx -> hordeInfo(ctx.getSource())))
                                 .then(Commands.literal("clear")
-                                        .executes(ctx -> hordeClear(ctx.getSource()))))
+                                        .executes(ctx -> hordeClear(ctx.getSource())))
+                                .then(Commands.literal("nextwave")
+                                        .executes(ctx -> hordeNextWave(ctx.getSource()))))
                         .then(Commands.literal("day")
                                 .then(Commands.literal("get")
                                         .executes(ctx -> dayGet(ctx.getSource())))
@@ -65,6 +69,9 @@ public class ZapocCommand {
                         .then(Commands.literal("bed")
                                 .then(Commands.literal("info")
                                         .executes(ctx -> bedInfo(ctx.getSource()))))
+                        .then(Commands.literal("test")
+                                .then(Commands.literal("title")
+                                        .executes(ctx -> testTitle(ctx.getSource()))))
                         .then(Commands.literal("roaming")
                                 .then(Commands.literal("info")
                                         .executes(ctx -> roamingInfo(ctx.getSource())))
@@ -118,6 +125,9 @@ public class ZapocCommand {
 
     private static int hordeStart(CommandSourceStack source) {
 
+        int day = HordeManager.calculateDay(source.getLevel().getDayTime());
+        HordeManager.setCurrentDay(day);
+        HordeManager.clearScheduledHordeSuppression();
         HordeManager.forceStartHorde();
         send(source, "Forced horde started.");
 
@@ -126,7 +136,10 @@ public class ZapocCommand {
 
     private static int hordeStop(CommandSourceStack source) {
 
+        int day = HordeManager.calculateDay(source.getLevel().getDayTime());
+        HordeManager.setCurrentDay(day);
         HordeManager.forceStopHorde();
+        HordeManager.suppressScheduledHordeForDay(day);
         send(source, "Forced horde stopped.");
 
         return 1;
@@ -135,20 +148,41 @@ public class ZapocCommand {
     private static int hordeInfo(CommandSourceStack source) {
 
         send(source, "Horde info:");
+        send(source, "Current day: " + HordeManager.getCurrentDay());
         send(source, "Active: " + HordeManager.isHordeActive());
         send(source, "Forced: " + HordeManager.isForcedHorde());
+        send(source, "Scheduled suppressed: " + HordeManager.isScheduledHordeSuppressedForDay(HordeManager.getCurrentDay()));
+        send(source, "Suppressed day: " + HordeManager.getSuppressedScheduledHordeDay());
         send(source, "Event type: " + HordeNightEventManager.getDisplayName());
         send(source, "Horde number: " + HordeManager.getHordeNumber());
+        send(source, "Wave: " + HordeWaveSpawner.getCurrentWave() + " / " + HordeWaveSpawner.getMaxWavesForCurrentDay());
+        send(source, "Ticks until next wave: " + HordeWaveSpawner.getTicksUntilNextWave());
+        send(source, "Pending spawns: " + HordeWaveSpawner.getPendingSpawnCount());
+        send(source, "Current wave is final: " + HordeWaveSpawner.isCurrentWaveFinalWave());
+        send(source, "Bed spawn center: " + (BedManager.getBedPos() == null ? "none" : BedManager.getBedPos().toShortString()));
+        send(source, "Bed chunk load radius: " + BedChunkLoader.getChunkRadius());
         send(source, "Group count: " + HordeGroupManager.getGroups().size());
         send(source, "Tracked active zombies: " + countTrackedHordeZombies());
 
         return 1;
     }
 
+    private static int hordeNextWave(CommandSourceStack source) {
+
+        boolean startedWave = HordeWaveSpawner.forceNextWave(source.getServer());
+
+        if (startedWave) {
+            send(source, "Forced next horde wave.");
+            return 1;
+        }
+
+        send(source, "Could not force next horde wave.");
+        return 0;
+    }
+
     private static int hordeClear(CommandSourceStack source) {
 
         int removed = removeTrackedHordeZombies();
-        HordeWaveSpawner.stop();
         HordeGroupManager.clear();
 
         send(source, "Cleared horde groups. Removed tracked zombies: " + removed);
@@ -191,6 +225,19 @@ public class ZapocCommand {
         send(source, "Hardcore active: " + BedManager.isHardcore());
 
         return 1;
+    }
+
+    private static int testTitle(CommandSourceStack source) {
+
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            ApocalypseMessageManager.sendTestTitle(player);
+            send(source, "Sent test title.");
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     private static int roamingInfo(CommandSourceStack source) {

@@ -3,9 +3,12 @@ package com.zapoc.server;
 import com.zapoc.bed.BedChunkLoader;
 import com.zapoc.bed.BedManager;
 import com.zapoc.bed.BedPersistenceManager;
+import com.zapoc.config.ZapocConfig;
 import com.zapoc.horde.HordeGroupManager;
 import com.zapoc.horde.HordeManager;
+import com.zapoc.horde.HordeNightEventManager;
 import com.zapoc.horde.HordeWaveSpawner;
+import com.zapoc.message.ApocalypseMessageManager;
 import com.zapoc.network.HudSyncPacket;
 import com.zapoc.network.NetworkHandler;
 import com.zapoc.roaming.RoamingGroupManager;
@@ -44,6 +47,10 @@ public class ServerTickHandler {
             loaded = true;
         }
 
+        if (HordeManager.isHordeActive()) {
+            HordeWaveSpawner.tick(server);
+        }
+
         tickCounter++;
 
         if (tickCounter < 5)
@@ -58,6 +65,7 @@ public class ServerTickHandler {
 
             if (level == null) {
 
+                ApocalypseMessageManager.sendBedDestroyedMessage(server.overworld());
                 BedManager.removeBed();
 
             } else if (level.isLoaded(pos)) {
@@ -65,6 +73,7 @@ public class ServerTickHandler {
                 if (!(level.getBlockState(pos).getBlock() instanceof BedBlock)) {
 
                     BedChunkLoader.unloadChunks(level);
+                    ApocalypseMessageManager.sendBedDestroyedMessage(level);
                     BedManager.removeBed();
                     BedPersistenceManager.saveBed(level);
                 }
@@ -82,12 +91,21 @@ public class ServerTickHandler {
         int daysLeft = HordeManager.getDaysUntilNextHorde();
         long time = server.overworld().getDayTime() % 24000L;
 
+        ApocalypseMessageManager.sendDayBeforeHordeWarning(server.overworld(), day, daysLeft);
+
         if (HordeManager.isForcedHorde()) {
             if (!HordeManager.isHordeActive()) {
                 HordeManager.startHorde();
             }
+            holdNightIfNeeded(server, time);
         } else {
-            if (daysLeft == 1 && time >= 13000) {
+            if (HordeManager.isHordeActive()) {
+                if (!BedManager.hasBed() || HordeWaveSpawner.isFinished()) {
+                    HordeManager.stopHorde();
+                } else {
+                    holdNightIfNeeded(server, time);
+                }
+            } else if (daysLeft == 1 && time >= 13000 && !HordeManager.isScheduledHordeSuppressedForDay(day)) {
                 HordeManager.startHorde();
             } else {
                 HordeManager.stopHorde();
@@ -97,8 +115,6 @@ public class ServerTickHandler {
         boolean hordeNight = HordeManager.isHordeActive();
 
         if (hordeNight) {
-
-            HordeWaveSpawner.tick(server);
 
             HordeGroupManager.cleanupDeadZombies();
             HordeGroupManager.tickGroups();
@@ -112,10 +128,39 @@ public class ServerTickHandler {
 
         RoamingGroupSpawner.tick(server);
 
+        if (BedManager.isHardcore()) {
+            ApocalypseMessageManager.sendHardcoreWarning(server);
+        }
+
         NetworkHandler.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
-                new HudSyncPacket(day, daysLeft, hordeNight, BedManager.isHardcore())
+                new HudSyncPacket(
+                        day,
+                        daysLeft,
+                        hordeNight,
+                        BedManager.isHardcore(),
+                        BedManager.hasBed(),
+                        HordeNightEventManager.getDisplayName(),
+                        HordeWaveSpawner.getCurrentWave(),
+                        HordeWaveSpawner.getMaxWavesForCurrentDay(),
+                        HordeManager.isForcedHorde(),
+                        RoamingGroupManager.getActiveCount()
+                )
         );
+    }
+
+    private static void holdNightIfNeeded(MinecraftServer server, long localTime) {
+
+        if (!ZapocConfig.HOLD_NIGHT_DURING_HORDE.get())
+            return;
+
+        if (localTime >= 13000L && localTime < 23000L)
+            return;
+
+        ServerLevel level = server.overworld();
+        long dayStart = level.getDayTime() - localTime;
+        long heldTime = dayStart + ZapocConfig.HORDE_HELD_NIGHT_TIME.get();
+        level.setDayTime(heldTime);
     }
 
     public static void resetLoadedFlag() {
@@ -127,5 +172,6 @@ public class ServerTickHandler {
         HordeGroupManager.clear();
         RoamingGroupSpawner.reset();
         RoamingGroupManager.clear();
+        ApocalypseMessageManager.resetBaseState();
     }
 }

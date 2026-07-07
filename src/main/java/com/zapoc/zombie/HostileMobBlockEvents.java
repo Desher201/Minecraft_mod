@@ -1,5 +1,6 @@
 package com.zapoc.zombie;
 
+import com.zapoc.config.ZapocConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Zombie;
@@ -20,7 +21,6 @@ public class HostileMobBlockEvents {
 
         ALLOWED_HOSTILE_MOBS.add(new ResourceLocation("minecraft", "zombie"));
         ALLOWED_HOSTILE_MOBS.add(new ResourceLocation("minecraft", "husk"));
-        ALLOWED_HOSTILE_MOBS.add(new ResourceLocation("minecraft", "drowned"));
         ALLOWED_HOSTILE_MOBS.add(new ResourceLocation("minecraft", "zombie_villager"));
 
         String[] zombieExtreme = {
@@ -68,6 +68,12 @@ public class HostileMobBlockEvents {
 
         if (event.getEntity().getType().getCategory() != MobCategory.MONSTER)
             return;
+
+        if (ZapocConfig.BLOCK_DROWNED_SPAWNS.get() && entityId.equals(new ResourceLocation("minecraft", "drowned"))) {
+            event.setCanceled(true);
+            event.getEntity().discard();
+            return;
+        }
 
         if (!ALLOWED_HOSTILE_MOBS.contains(entityId)) {
             event.setCanceled(true);

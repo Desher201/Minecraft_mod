@@ -2,6 +2,7 @@ package com.zapoc.horde;
 
 import com.zapoc.bed.BedManager;
 import com.zapoc.config.ZapocConfig;
+import com.zapoc.message.ApocalypseMessageManager;
 import com.zapoc.spawn.ZapocSpawnPositionHelper;
 import com.zapoc.zombie.ZombieAIController;
 import com.zapoc.zombie.ZombiePowerSystem;
@@ -35,7 +36,7 @@ public class HordeWaveSpawner {
 
     public static void start() {
 
-        waveTimer = getFirstWaveDelayTicks();
+        waveTimer = 0;
         currentWave = 0;
         started = true;
 
@@ -57,6 +58,51 @@ public class HordeWaveSpawner {
         pendingSpawnWave = 0;
         pendingSpawnIndex = 0;
         spawnBatchTimer = 0;
+    }
+
+    public static int getCurrentWave() {
+        return currentWave;
+    }
+
+    public static int getMaxWavesForCurrentDay() {
+        return getMaxWaves();
+    }
+
+    public static int getTicksUntilNextWave() {
+        return Math.max(0, waveTimer);
+    }
+
+    public static int getPendingSpawnCount() {
+        return pendingSpawnCount;
+    }
+
+    public static boolean isCurrentWaveFinalWave() {
+        return currentWave > 0 && currentWave >= getMaxWaves();
+    }
+
+    public static boolean isFinished() {
+        return started && currentWave >= getMaxWaves() && pendingSpawnCount <= 0;
+    }
+
+    public static boolean forceNextWave(MinecraftServer server) {
+
+        if (server == null)
+            return false;
+
+        if (!started || !HordeManager.isHordeActive() || !BedManager.hasBed())
+            return false;
+
+        ServerLevel level = server.getLevel(BedManager.getDimension());
+
+        if (level == null)
+            return false;
+
+        pendingSpawnCount = 0;
+        pendingSpawnIndex = 0;
+        spawnBatchTimer = 0;
+        waveTimer = 0;
+
+        return startNextWave(level);
     }
 
     public static void tick(MinecraftServer server) {
@@ -88,31 +134,36 @@ public class HordeWaveSpawner {
         if (waveTimer > 0)
             return;
 
+        startNextWave(level);
+    }
+
+    private static boolean startNextWave(ServerLevel level) {
+
         int maxWaves = getMaxWaves();
 
         if (currentWave >= maxWaves)
-            return;
+            return false;
 
         BlockPos bedPos = BedManager.getBedPos();
 
         if (bedPos == null)
-            return;
+            return false;
 
-        if (countActiveHordeZombies(level, bedPos) >= ZapocConfig.MAX_ACTIVE_HORDE_ZOMBIES.get()) {
-            waveTimer = 20 * 10;
-            return;
-        }
-
-        prepareWave();
+        prepareWave(level, bedPos);
 
         currentWave++;
         waveTimer = getWaveIntervalTicks();
+
+        return true;
     }
 
-    private static void prepareWave() {
+    private static void prepareWave(ServerLevel level, BlockPos bedPos) {
 
         int day = HordeManager.getCurrentDay();
-        int count = getZombiesForWave(day, currentWave);
+        int requestedCount = getZombiesForWave(day, currentWave);
+        int activeCount = countActiveHordeZombies(level, bedPos);
+        int availableSlots = Math.max(0, ZapocConfig.MAX_ACTIVE_HORDE_ZOMBIES.get() - activeCount);
+        int count = Math.min(requestedCount, availableSlots);
 
         pendingSpawnCount = count;
         pendingSpawnDay = day;
@@ -120,7 +171,16 @@ public class HordeWaveSpawner {
         pendingSpawnIndex = 0;
         spawnBatchTimer = 0;
 
+        if (pendingSpawnWave == getMaxWaves()) {
+            ApocalypseMessageManager.sendFinalWaveMessage(level);
+        }
+
+        if (count < requestedCount) {
+            System.out.println("[ZApoc] Horde wave " + pendingSpawnWave + " reduced from " + requestedCount + " to " + count + " zombies because active zombie limit is near.");
+        }
+
         System.out.println("[ZApoc] Preparing horde wave " + pendingSpawnWave + " with " + count + " zombies.");
+        ApocalypseMessageManager.sendHordeWaveMessage(level, pendingSpawnWave, getMaxWaves());
     }
 
     private static void tickPendingSpawns(ServerLevel level) {
@@ -260,6 +320,13 @@ public class HordeWaveSpawner {
             count = (int) (count * 1.15D);
         } else if (type == HordeNightType.TANK_PUSH) {
             count = (int) (count * 0.85D);
+        }
+
+        if (wave + 1 >= getMaxWaves()) {
+            double multiplier = type == HordeNightType.FINAL_HORDE
+                    ? ZapocConfig.FINAL_HORDE_FINAL_WAVE_ZOMBIE_MULTIPLIER.get()
+                    : ZapocConfig.FINAL_WAVE_ZOMBIE_MULTIPLIER.get();
+            count = (int) Math.ceil(count * multiplier);
         }
 
         int maxZombies = ZapocConfig.MAX_ZOMBIES_PER_WAVE.get();

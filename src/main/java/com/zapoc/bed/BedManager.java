@@ -1,5 +1,6 @@
 package com.zapoc.bed;
 
+import com.zapoc.message.ApocalypseMessageManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -49,6 +50,7 @@ public class BedManager {
         dimension = dim;
 
         hardcore = false;
+        ApocalypseMessageManager.resetBaseState();
 
         System.out.println("[ZApoc] Global bed placed at " + pos + " in " + dim.location());
     }

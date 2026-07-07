@@ -1,6 +1,8 @@
 package com.zapoc.horde;
 
 import com.zapoc.config.ZapocConfig;
+import com.zapoc.message.ApocalypseMessageManager;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 public class HordeManager {
 
@@ -9,6 +11,7 @@ public class HordeManager {
     private static boolean hordeActive = false;
     private static boolean forcedHorde = false;
     private static int hordeNumber = 0;
+    private static int suppressedScheduledHordeDay = -1;
 
     public static int getCurrentDay() {
         return currentDay;
@@ -35,7 +38,24 @@ public class HordeManager {
         return forcedHorde;
     }
 
+    public static void suppressScheduledHordeForDay(int day) {
+        suppressedScheduledHordeDay = Math.max(day, 1);
+    }
+
+    public static boolean isScheduledHordeSuppressedForDay(int day) {
+        return suppressedScheduledHordeDay == day;
+    }
+
+    public static void clearScheduledHordeSuppression() {
+        suppressedScheduledHordeDay = -1;
+    }
+
+    public static int getSuppressedScheduledHordeDay() {
+        return suppressedScheduledHordeDay;
+    }
+
     public static void forceStartHorde() {
+        clearScheduledHordeSuppression();
         forcedHorde = true;
         startHorde();
     }
@@ -56,6 +76,7 @@ public class HordeManager {
         HordeNightEventManager.startForDay(currentDay);
         HordeGroupManager.createGroups();
         HordeWaveSpawner.start();
+        ApocalypseMessageManager.sendHordeStartMessages(ServerLifecycleHooks.getCurrentServer());
 
         System.out.println("===== HORDE STARTED =====");
         System.out.println("Horde #" + hordeNumber);

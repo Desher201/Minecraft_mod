@@ -2,6 +2,7 @@ package com.zapoc.hardcore;
 
 import com.zapoc.bed.BedManager;
 import com.zapoc.client.DeathScreen;
+import com.zapoc.message.ApocalypseMessageManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -23,6 +24,7 @@ public class HardcoreEvents {
             return;
 
         System.out.println("[ZApoc] Hardcore death: " + player.getName().getString());
+        ApocalypseMessageManager.sendHardcoreDeathMessage(player);
 
         // Пока просто переводим в режим наблюдателя
         player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);

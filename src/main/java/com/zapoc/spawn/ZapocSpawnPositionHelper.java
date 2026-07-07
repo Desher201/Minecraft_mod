@@ -1,8 +1,10 @@
 package com.zapoc.spawn;
 
+import com.zapoc.config.ZapocConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -82,24 +84,46 @@ public class ZapocSpawnPositionHelper {
         BlockState feet = level.getBlockState(pos);
         BlockState head = level.getBlockState(pos.above());
 
+        if (hasUnsafeFluid(below, !ZapocConfig.ZOMBIE_SPAWN_ALLOW_WATER.get()))
+            return false;
+
+        if (hasUnsafeFluid(feet, !ZapocConfig.ZOMBIE_SPAWN_ALLOW_WATER.get()))
+            return false;
+
+        if (hasUnsafeFluid(head, !ZapocConfig.ZOMBIE_SPAWN_ALLOW_WATER.get()))
+            return false;
+
         if (!feet.isAir())
             return false;
 
         if (!head.isAir())
             return false;
 
-        if (!level.getFluidState(pos).isEmpty())
+        if (feet.getMaterial().isLiquid())
             return false;
 
-        if (!level.getFluidState(pos.above()).isEmpty())
+        if (head.getMaterial().isLiquid())
             return false;
 
-        if (!below.getFluidState().isEmpty())
+        if (below.getMaterial().isLiquid())
             return false;
 
         if (!below.getMaterial().isSolid())
             return false;
 
         return below.isValidSpawn(level, pos.below(), EntityType.ZOMBIE);
+    }
+
+    private static boolean hasUnsafeFluid(BlockState state, boolean rejectWater) {
+
+        FluidState fluidState = state.getFluidState();
+
+        if (fluidState.isEmpty())
+            return false;
+
+        if (rejectWater)
+            return true;
+
+        return state.getMaterial().isLiquid();
     }
 }

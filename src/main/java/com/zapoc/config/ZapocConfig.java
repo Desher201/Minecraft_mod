@@ -17,6 +17,11 @@ public class ZapocConfig {
     public static final ForgeConfigSpec.DoubleValue ACTIVE_ZOMBIE_CHECK_RADIUS;
     public static final ForgeConfigSpec.IntValue MIN_SPAWN_DISTANCE;
     public static final ForgeConfigSpec.IntValue MAX_SPAWN_DISTANCE;
+    public static final ForgeConfigSpec.BooleanValue HOLD_NIGHT_DURING_HORDE;
+    public static final ForgeConfigSpec.IntValue HORDE_HELD_NIGHT_TIME;
+    public static final ForgeConfigSpec.DoubleValue FINAL_WAVE_ZOMBIE_MULTIPLIER;
+    public static final ForgeConfigSpec.DoubleValue FINAL_HORDE_FINAL_WAVE_ZOMBIE_MULTIPLIER;
+    public static final ForgeConfigSpec.IntValue BED_CHUNK_LOAD_RADIUS;
 
     public static final ForgeConfigSpec.IntValue BREAKER_CHANCE_DAY_20;
     public static final ForgeConfigSpec.IntValue BREAKER_CHANCE_DAY_40;
@@ -49,6 +54,12 @@ public class ZapocConfig {
     public static final ForgeConfigSpec.DoubleValue MAX_DAMAGE_POWER;
     public static final ForgeConfigSpec.IntValue ZOMBIE_SUN_FIRE_IMMUNE_MIN_DAY;
     public static final ForgeConfigSpec.BooleanValue ZOMBIE_SUN_FIRE_CAN_IGNITE_TARGETS;
+    public static final ForgeConfigSpec.BooleanValue ZOMBIE_SPAWN_ALLOW_WATER;
+    public static final ForgeConfigSpec.BooleanValue HORDE_MESSAGES_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue HORDE_TITLE_MESSAGES_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue HORDE_CHAT_MESSAGES_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue HARDCORE_DEATH_MESSAGES_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue BLOCK_DROWNED_SPAWNS;
 
     public static final ForgeConfigSpec.BooleanValue ROAMING_GROUPS_ENABLED;
     public static final ForgeConfigSpec.BooleanValue ROAMING_GROUPS_SPAWN_DURING_HORDE;
@@ -100,6 +111,11 @@ public class ZapocConfig {
         ACTIVE_ZOMBIE_CHECK_RADIUS = builder.defineInRange("activeZombieCheckRadius", 112.0D, 8.0D, 512.0D);
         MIN_SPAWN_DISTANCE = builder.defineInRange("minSpawnDistance", 28, 1, 512);
         MAX_SPAWN_DISTANCE = builder.defineInRange("maxSpawnDistance", 46, 1, 1024);
+        HOLD_NIGHT_DURING_HORDE = builder.define("holdNightDuringHorde", true);
+        HORDE_HELD_NIGHT_TIME = builder.defineInRange("hordeHeldNightTime", 18000, 13000, 23000);
+        FINAL_WAVE_ZOMBIE_MULTIPLIER = builder.defineInRange("finalWaveZombieMultiplier", 2.0D, 1.0D, 20.0D);
+        FINAL_HORDE_FINAL_WAVE_ZOMBIE_MULTIPLIER = builder.defineInRange("finalHordeFinalWaveZombieMultiplier", 3.0D, 1.0D, 30.0D);
+        BED_CHUNK_LOAD_RADIUS = builder.defineInRange("bedChunkLoadRadius", 2, 0, 8);
         builder.pop();
 
         builder.push("zombie_chances");
@@ -138,6 +154,15 @@ public class ZapocConfig {
         MAX_DAMAGE_POWER = builder.defineInRange("maxDamagePower", 5.0D, 1.0D, 100.0D);
         ZOMBIE_SUN_FIRE_IMMUNE_MIN_DAY = builder.defineInRange("zombieSunFireImmuneMinDay", 5, 1, 10000);
         ZOMBIE_SUN_FIRE_CAN_IGNITE_TARGETS = builder.define("zombieSunFireCanIgniteTargets", false);
+        ZOMBIE_SPAWN_ALLOW_WATER = builder.define("zombieSpawnAllowWater", false);
+        builder.pop();
+
+        builder.push("messages");
+        HORDE_MESSAGES_ENABLED = builder.define("hordeMessagesEnabled", true);
+        HORDE_TITLE_MESSAGES_ENABLED = builder.define("hordeTitleMessagesEnabled", true);
+        HORDE_CHAT_MESSAGES_ENABLED = builder.define("hordeChatMessagesEnabled", true);
+        HARDCORE_DEATH_MESSAGES_ENABLED = builder.define("hardcoreDeathMessagesEnabled", true);
+        BLOCK_DROWNED_SPAWNS = builder.define("blockDrownedSpawns", true);
         builder.pop();
 
         builder.push("roaming_groups");
